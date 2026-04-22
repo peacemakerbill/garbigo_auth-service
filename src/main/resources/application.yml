@@ -1,0 +1,57 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: auth-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/garbigo_auth
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: thepeacemakerske@gmail.com                  # Replace with your Gmail
+    password: 'mjyk cibp uids weiy'                     # Use Gmail App Password (not regular password)
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+cloudinary:
+  cloud-name: thepeacemakersllc                       # Replace with your Cloudinary cloud name
+  api-key: 279386562332176                              # Replace with your Cloudinary API key
+  api-secret: _UVXMFDd78NXrqPrIQA-JJK_u98                        # Replace with your Cloudinary API secret
+
+jwt:
+  secret: pR5q9T8wX2z7C4v3B6nM1kLj8HgFdEaSbQcW3eZr4tY7uKiOp9L0mN2bV5cX8jH  # Must be Base64-encoded, ≥44 chars for HS256
+  expiration: 2592000  # 30 days in seconds
+
+rate-limit:
+  requests-per-minute: 20
+
+rabbitmq:
+  queue:
+    user-created: user-created-queue
+
+app:
+  url: http://localhost:3000                         # Your Flutter web/frontend URL (change for production)
+
+google:
+  client-id: your-google-client-id.apps.googleusercontent.com   # From Google Cloud Console
+
+facebook:
+  app-id: your-facebook-app-id
+  app-secret: your-facebook-app-secret
+
+apple:
+  client-id: your-apple-service-id                           # e.g., com.yourcompany.garbigo
