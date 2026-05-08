@@ -1,7 +1,6 @@
 package com.garbigo.auth.service;
 
-import com.garbigo.auth.dto.SocialActionRequest;
-import com.garbigo.auth.dto.SocialStatsDto;
+import com.garbigo.auth.dto.*;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.Follow;
 import com.garbigo.auth.model.Like;
@@ -14,6 +13,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SocialService {
@@ -40,54 +41,93 @@ public class SocialService {
 
     // ====================== FOLLOW ======================
     public void follow(String targetUserId) {
-        User currentUser = getCurrentUser();
-        if (currentUser.getId().equals(targetUserId)) {
+        User current = getCurrentUser();
+        if (current.getId().equals(targetUserId)) {
             throw new CustomException("You cannot follow yourself");
         }
-
         Follow follow = new Follow();
         follow.setUserId(targetUserId);
-        follow.setFollowerId(currentUser.getId());
+        follow.setFollowerId(current.getId());
         followRepository.save(follow);
     }
 
     public void unfollow(String targetUserId) {
-        User currentUser = getCurrentUser();
-        followRepository.deleteByUserIdAndFollowerId(targetUserId, currentUser.getId());
+        User current = getCurrentUser();
+        followRepository.deleteByUserIdAndFollowerId(targetUserId, current.getId());
+    }
+
+    public List<UserSummaryDto> getFollowers(String userId) {
+        // For now returning basic info. You can enhance with full user lookup later
+        return followRepository.findByUserId(userId).stream()
+                .map(f -> new UserSummaryDto(f.getFollowerId(), null, null, null, null))
+                .collect(Collectors.toList());
+    }
+
+    public List<UserSummaryDto> getFollowing(String userId) {
+        return followRepository.findByFollowerId(userId).stream()
+                .map(f -> new UserSummaryDto(f.getUserId(), null, null, null, null))
+                .collect(Collectors.toList());
+    }
+
+    public FollowCheckDto isFollowing(String targetUserId) {
+        User current = getCurrentUser();
+        boolean following = followRepository.findByUserIdAndFollowerId(targetUserId, current.getId()).isPresent();
+        return new FollowCheckDto(following);
     }
 
     // ====================== LIKE ======================
     public void like(String targetId, String targetType) {
-        User currentUser = getCurrentUser();
-
+        User current = getCurrentUser();
         Like like = new Like();
-        like.setUserId(currentUser.getId());
+        like.setUserId(current.getId());
         like.setTargetId(targetId);
-        like.setTargetType(targetType != null ? targetType : "USER");
+        like.setTargetType(targetType != null ? targetType.toUpperCase() : "USER");
         likeRepository.save(like);
     }
 
     public void unlike(String targetId, String targetType) {
-        User currentUser = getCurrentUser();
+        User current = getCurrentUser();
         likeRepository.deleteByUserIdAndTargetIdAndTargetType(
-                currentUser.getId(), targetId, targetType != null ? targetType : "USER");
+                current.getId(), targetId, targetType != null ? targetType.toUpperCase() : "USER");
+    }
+
+    public LikeCheckDto isLiked(String targetId, String targetType) {
+        User current = getCurrentUser();
+        boolean liked = likeRepository.findByUserIdAndTargetIdAndTargetType(
+                current.getId(), targetId, targetType != null ? targetType.toUpperCase() : "USER").isPresent();
+        return new LikeCheckDto(liked);
     }
 
     // ====================== REVIEW ======================
     public void addReview(String targetId, String targetType, SocialActionRequest request) {
-        User currentUser = getCurrentUser();
+        User current = getCurrentUser();
 
         if (request.getRating() < 1 || request.getRating() > 5) {
             throw new CustomException("Rating must be between 1 and 5");
         }
 
         Review review = new Review();
-        review.setUserId(currentUser.getId());
+        review.setUserId(current.getId());
         review.setTargetId(targetId);
-        review.setTargetType(targetType != null ? targetType : "USER");
+        review.setTargetType(targetType != null ? targetType.toUpperCase() : "USER");
         review.setRating(request.getRating());
         review.setComment(request.getComment());
         reviewRepository.save(review);
+    }
+
+    public List<ReviewResponseDto> getReviews(String targetId, String targetType) {
+        return reviewRepository.findByTargetIdAndTargetType(
+                targetId, targetType != null ? targetType.toUpperCase() : "USER")
+                .stream()
+                .map(r -> new ReviewResponseDto(
+                        r.getId(),
+                        r.getUserId(),
+                        "User", // You can enhance this by fetching username
+                        r.getRating(),
+                        r.getComment(),
+                        r.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
     }
 
     // ====================== STATS ======================
