@@ -69,6 +69,19 @@ public class SocialController {
         return ResponseEntity.ok("Review submitted successfully");
     }
 
+    @PutMapping("/review/{reviewId}")
+    public ResponseEntity<String> updateReview(@PathVariable String reviewId,
+                                               @RequestBody ReviewUpdateRequest request) {
+        socialService.updateReview(reviewId, request);
+        return ResponseEntity.ok("Review updated successfully");
+    }
+
+    @DeleteMapping("/review/{reviewId}")
+    public ResponseEntity<String> deleteReview(@PathVariable String reviewId) {
+        socialService.deleteReview(reviewId);
+        return ResponseEntity.ok("Review deleted successfully");
+    }
+
     @GetMapping("/reviews/{targetId}")
     public ResponseEntity<List<ReviewResponseDto>> getReviews(
             @PathVariable String targetId,

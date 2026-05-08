@@ -57,7 +57,6 @@ public class SocialService {
     }
 
     public List<UserSummaryDto> getFollowers(String userId) {
-        // For now returning basic info. You can enhance with full user lookup later
         return followRepository.findByUserId(userId).stream()
                 .map(f -> new UserSummaryDto(f.getFollowerId(), null, null, null, null))
                 .collect(Collectors.toList());
@@ -115,6 +114,38 @@ public class SocialService {
         reviewRepository.save(review);
     }
 
+    public void updateReview(String reviewId, ReviewUpdateRequest request) {
+        User current = getCurrentUser();
+
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new CustomException("Review not found"));
+
+        if (!review.getUserId().equals(current.getId())) {
+            throw new CustomException("You can only edit your own review");
+        }
+
+        if (request.getRating() < 1 || request.getRating() > 5) {
+            throw new CustomException("Rating must be between 1 and 5");
+        }
+
+        review.setRating(request.getRating());
+        review.setComment(request.getComment());
+        reviewRepository.save(review);
+    }
+
+    public void deleteReview(String reviewId) {
+        User current = getCurrentUser();
+
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new CustomException("Review not found"));
+
+        if (!review.getUserId().equals(current.getId())) {
+            throw new CustomException("You can only delete your own review");
+        }
+
+        reviewRepository.deleteById(reviewId);
+    }
+
     public List<ReviewResponseDto> getReviews(String targetId, String targetType) {
         return reviewRepository.findByTargetIdAndTargetType(
                 targetId, targetType != null ? targetType.toUpperCase() : "USER")
@@ -122,7 +153,7 @@ public class SocialService {
                 .map(r -> new ReviewResponseDto(
                         r.getId(),
                         r.getUserId(),
-                        "User", // You can enhance this by fetching username
+                        "User", // TODO: Enhance with actual username
                         r.getRating(),
                         r.getComment(),
                         r.getCreatedAt()
