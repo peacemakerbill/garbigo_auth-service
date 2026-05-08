@@ -9,11 +9,14 @@ import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.FollowRepository;
 import com.garbigo.auth.repository.LikeRepository;
 import com.garbigo.auth.repository.ReviewRepository;
+import com.garbigo.auth.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,13 +25,16 @@ public class SocialService {
     private final FollowRepository followRepository;
     private final LikeRepository likeRepository;
     private final ReviewRepository reviewRepository;
+    private final UserRepository userRepository;
 
     public SocialService(FollowRepository followRepository,
                          LikeRepository likeRepository,
-                         ReviewRepository reviewRepository) {
+                         ReviewRepository reviewRepository,
+                         UserRepository userRepository) {
         this.followRepository = followRepository;
         this.likeRepository = likeRepository;
         this.reviewRepository = reviewRepository;
+        this.userRepository = userRepository;
     }
 
     private User getCurrentUser() {
@@ -57,15 +63,15 @@ public class SocialService {
     }
 
     public List<UserSummaryDto> getFollowers(String userId) {
-        return followRepository.findByUserId(userId).stream()
-                .map(f -> new UserSummaryDto(f.getFollowerId(), null, null, null, null))
-                .collect(Collectors.toList());
+        List<String> followerIds = followRepository.findByUserId(userId)
+                .stream().map(Follow::getFollowerId).collect(Collectors.toList());
+        return getUserSummaries(followerIds);
     }
 
     public List<UserSummaryDto> getFollowing(String userId) {
-        return followRepository.findByFollowerId(userId).stream()
-                .map(f -> new UserSummaryDto(f.getUserId(), null, null, null, null))
-                .collect(Collectors.toList());
+        List<String> followingIds = followRepository.findByFollowerId(userId)
+                .stream().map(Follow::getUserId).collect(Collectors.toList());
+        return getUserSummaries(followingIds);
     }
 
     public FollowCheckDto isFollowing(String targetUserId) {
@@ -116,7 +122,6 @@ public class SocialService {
 
     public void updateReview(String reviewId, ReviewUpdateRequest request) {
         User current = getCurrentUser();
-
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new CustomException("Review not found"));
 
@@ -135,7 +140,6 @@ public class SocialService {
 
     public void deleteReview(String reviewId) {
         User current = getCurrentUser();
-
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new CustomException("Review not found"));
 
@@ -147,17 +151,62 @@ public class SocialService {
     }
 
     public List<ReviewResponseDto> getReviews(String targetId, String targetType) {
-        return reviewRepository.findByTargetIdAndTargetType(
-                targetId, targetType != null ? targetType.toUpperCase() : "USER")
-                .stream()
-                .map(r -> new ReviewResponseDto(
-                        r.getId(),
-                        r.getUserId(),
-                        "User", // TODO: Enhance with actual username
-                        r.getRating(),
-                        r.getComment(),
-                        r.getCreatedAt()
-                ))
+        List<Review> reviews = reviewRepository.findByTargetIdAndTargetType(
+                targetId, targetType != null ? targetType.toUpperCase() : "USER");
+
+        if (reviews.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> reviewerIds = reviews.stream()
+                .map(Review::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, User> userMap = userRepository.findAllById(reviewerIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        return reviews.stream()
+                .map(r -> {
+                    User reviewer = userMap.get(r.getUserId());
+                    String fullName = reviewer != null 
+                            ? reviewer.getFirstName() + " " + (reviewer.getLastName() != null ? reviewer.getLastName() : "")
+                            : "Unknown User";
+
+                    return new ReviewResponseDto(
+                            r.getId(),
+                            r.getUserId(),
+                            fullName.trim(),
+                            reviewer != null ? reviewer.getProfilePictureUrl() : null,
+                            r.getRating(),
+                            r.getComment(),
+                            r.getCreatedAt()
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    // ====================== HELPER ======================
+    private List<UserSummaryDto> getUserSummaries(List<String> userIds) {
+        if (userIds.isEmpty()) return List.of();
+
+        Map<String, User> userMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        return userIds.stream()
+                .map(id -> {
+                    User u = userMap.get(id);
+                    if (u == null) {
+                        return new UserSummaryDto(id, null, null, null, null);
+                    }
+                    return new UserSummaryDto(
+                            u.getId(),
+                            u.getUsername(),
+                            u.getFirstName(),
+                            u.getLastName(),
+                            u.getProfilePictureUrl()
+                    );
+                })
                 .collect(Collectors.toList());
     }
 

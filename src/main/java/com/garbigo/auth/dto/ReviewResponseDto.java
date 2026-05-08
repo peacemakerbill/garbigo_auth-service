@@ -9,8 +9,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ReviewResponseDto {
     private String id;
-    private String userId;
-    private String username;           // Reviewer's name
+    private String reviewerId;
+    private String reviewerName;           // Full name: "John Doe"
+    private String reviewerProfilePictureUrl;
     private int rating;
     private String comment;
     private LocalDateTime createdAt;
