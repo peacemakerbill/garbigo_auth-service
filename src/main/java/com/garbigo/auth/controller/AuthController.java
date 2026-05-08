@@ -59,18 +59,18 @@ public class AuthController {
         return ResponseEntity.ok("Password changed successfully");
     }
 
-    @PostMapping("/social/google")
-    public ResponseEntity<AuthResponse> googleLogin(@RequestBody SocialLoginRequest request) {
-        return ResponseEntity.ok(socialAuthService.googleLogin(request));
-    }
-
-    @PostMapping("/social/facebook")
-    public ResponseEntity<AuthResponse> facebookLogin(@RequestBody SocialLoginRequest request) {
-        return ResponseEntity.ok(socialAuthService.facebookLogin(request));
-    }
-
-    @PostMapping("/social/apple")
-    public ResponseEntity<AuthResponse> appleLogin(@RequestBody SocialLoginRequest request) {
-        return ResponseEntity.ok(socialAuthService.appleLogin(request));
-    }
+//    @PostMapping("/social/google")
+//    public ResponseEntity<AuthResponse> googleLogin(@RequestBody SocialLoginRequest request) {
+//        return ResponseEntity.ok(socialAuthService.googleLogin(request));
+//    }
+//
+//    @PostMapping("/social/facebook")
+//    public ResponseEntity<AuthResponse> facebookLogin(@RequestBody SocialLoginRequest request) {
+//        return ResponseEntity.ok(socialAuthService.facebookLogin(request));
+//    }
+//
+//    @PostMapping("/social/apple")
+//    public ResponseEntity<AuthResponse> appleLogin(@RequestBody SocialLoginRequest request) {
+//        return ResponseEntity.ok(socialAuthService.appleLogin(request));
+//    }
 }
