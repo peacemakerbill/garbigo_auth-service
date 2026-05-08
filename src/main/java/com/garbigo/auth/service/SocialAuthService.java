@@ -86,7 +86,8 @@ public class SocialAuthService {
                     + request.getToken() + "&access_token=" + appAccessToken;
 
             ResponseEntity<Map> response = restTemplate.getForEntity(debugUrl, Map.class);
-            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            @SuppressWarnings("unchecked")
+			Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
 
             if (data == null || !(Boolean) data.get("is_valid")) {
                 throw new CustomException("Invalid Facebook token");
@@ -186,22 +187,7 @@ public class SocialAuthService {
         AuthResponse response = new AuthResponse();
         response.setToken(jwtUtil.generateToken(user));
         response.setRole(user.getRole().name());
-
-        // Internal logic instead of external service call
-        response.setDashboardUrl(getDashboardUrl(user.getRole()));
-
+        // dashboardUrl removed - handled by frontend
         return response;
-    }
-
-    private String getDashboardUrl(Role role) {
-        switch (role) {
-            case ADMIN:
-                return "/dashboard/admin";
-            case COLLECTOR:
-                return "/dashboard/collector";
-            case CLIENT:
-            default:
-                return "/dashboard/client";
-        }
     }
 }

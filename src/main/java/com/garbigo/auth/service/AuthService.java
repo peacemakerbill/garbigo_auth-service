@@ -275,23 +275,8 @@ public class AuthService {
         response.setRole(user.getRole().name());
         response.setVerified(user.isVerified());
         
-        // Dashboard URLs for ALL roles (no external service call)
-        String dashboardUrl = getDashboardUrlForRole(user.getRole());
-        response.setDashboardUrl(dashboardUrl);
-        
+        // Dashboard URL removed - handled by frontend
         return response;
-    }
-
-    private String getDashboardUrlForRole(Role role) {
-        return switch (role) {
-            case ADMIN -> "/admin/dashboard";
-            case COLLECTOR -> "/collector/dashboard";
-            case CLIENT -> "/client/dashboard";
-            case OPERATIONS -> "/operations/dashboard";
-            case FINANCE -> "/finance/dashboard";
-            case SUPPORT -> "/support/dashboard";
-            default -> "/dashboard";
-        };
     }
 
     public String uploadProfilePicture(org.springframework.web.multipart.MultipartFile file) throws IOException {
