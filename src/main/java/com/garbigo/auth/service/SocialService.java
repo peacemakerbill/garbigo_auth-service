@@ -103,6 +103,18 @@ public class SocialService {
         return new LikeCheckDto(liked);
     }
 
+    // ====================== Get Users Who Liked ======================
+    public List<UserSummaryDto> getUsersWhoLiked(String targetId, String targetType) {
+        String type = targetType != null ? targetType.toUpperCase() : "USER";
+        
+        List<String> likerIds = likeRepository.findByTargetIdAndTargetType(targetId, type)
+                .stream()
+                .map(Like::getUserId)
+                .collect(Collectors.toList());
+
+        return getUserSummaries(likerIds);
+    }
+
     // ====================== REVIEW ======================
     public void addReview(String targetId, String targetType, SocialActionRequest request) {
         User current = getCurrentUser();
@@ -184,6 +196,19 @@ public class SocialService {
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    // ====================== Get Users Who Reviewed ======================
+    public List<UserSummaryDto> getUsersWhoReviewed(String targetId, String targetType) {
+        String type = targetType != null ? targetType.toUpperCase() : "USER";
+        
+        List<String> reviewerIds = reviewRepository.findByTargetIdAndTargetType(targetId, type)
+                .stream()
+                .map(Review::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        return getUserSummaries(reviewerIds);
     }
 
     // ====================== HELPER ======================
