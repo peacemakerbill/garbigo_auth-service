@@ -275,7 +275,6 @@ public class AuthService {
         response.setRole(user.getRole().name());
         response.setVerified(user.isVerified());
         
-        // Dashboard URL removed - handled by frontend
         return response;
     }
 
