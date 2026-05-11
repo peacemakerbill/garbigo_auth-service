@@ -62,6 +62,14 @@ public class SocialController {
         return ResponseEntity.ok(socialService.isLiked(targetId, targetType));
     }
 
+    // ====================== Users Who Liked ======================
+    @GetMapping("/likes/{targetId}")
+    public ResponseEntity<List<UserSummaryDto>> getUsersWhoLiked(
+            @PathVariable String targetId,
+            @RequestParam(required = false) String targetType) {
+        return ResponseEntity.ok(socialService.getUsersWhoLiked(targetId, targetType));
+    }
+
     // ====================== REVIEW ======================
     @PostMapping("/review")
     public ResponseEntity<String> addReview(@RequestBody SocialActionRequest request) {
@@ -87,6 +95,14 @@ public class SocialController {
             @PathVariable String targetId,
             @RequestParam(required = false) String targetType) {
         return ResponseEntity.ok(socialService.getReviews(targetId, targetType));
+    }
+
+    // ====================== Users Who Reviewed ======================
+    @GetMapping("/reviewers/{targetId}")
+    public ResponseEntity<List<UserSummaryDto>> getUsersWhoReviewed(
+            @PathVariable String targetId,
+            @RequestParam(required = false) String targetType) {
+        return ResponseEntity.ok(socialService.getUsersWhoReviewed(targetId, targetType));
     }
 
     // ====================== STATS ======================
