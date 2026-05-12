@@ -48,9 +48,18 @@ public class SocialService {
     // ====================== FOLLOW ======================
     public void follow(String targetUserId) {
         User current = getCurrentUser();
+        
         if (current.getId().equals(targetUserId)) {
             throw new CustomException("You cannot follow yourself");
         }
+
+        // Check if already following
+        boolean alreadyFollowing = followRepository.findByUserIdAndFollowerId(targetUserId, current.getId()).isPresent();
+
+        if (alreadyFollowing) {
+            throw new CustomException("You are already following this user");
+        }
+
         Follow follow = new Follow();
         follow.setUserId(targetUserId);
         follow.setFollowerId(current.getId());
@@ -59,6 +68,14 @@ public class SocialService {
 
     public void unfollow(String targetUserId) {
         User current = getCurrentUser();
+
+        // Check if actually following before unfollowing
+        boolean isFollowing = followRepository.findByUserIdAndFollowerId(targetUserId, current.getId()).isPresent();
+
+        if (!isFollowing) {
+            throw new CustomException("You are not following this user");
+        }
+
         followRepository.deleteByUserIdAndFollowerId(targetUserId, current.getId());
     }
 
