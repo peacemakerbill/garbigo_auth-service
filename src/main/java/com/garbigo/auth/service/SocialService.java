@@ -85,7 +85,7 @@ public class SocialService {
         User current = getCurrentUser();
         String type = targetType != null ? targetType.toUpperCase() : "USER";
 
-        // Check if user already liked this target
+        // Prevent duplicate likes
         boolean alreadyLiked = likeRepository.findByUserIdAndTargetIdAndTargetType(
                 current.getId(), targetId, type).isPresent();
 
@@ -102,14 +102,25 @@ public class SocialService {
 
     public void unlike(String targetId, String targetType) {
         User current = getCurrentUser();
+        String type = targetType != null ? targetType.toUpperCase() : "USER";
+
+        // Check if like exists before deleting
+        boolean liked = likeRepository.findByUserIdAndTargetIdAndTargetType(
+                current.getId(), targetId, type).isPresent();
+
+        if (!liked) {
+            throw new CustomException("You have not liked this " + type.toLowerCase());
+        }
+
         likeRepository.deleteByUserIdAndTargetIdAndTargetType(
-                current.getId(), targetId, targetType != null ? targetType.toUpperCase() : "USER");
+                current.getId(), targetId, type);
     }
 
     public LikeCheckDto isLiked(String targetId, String targetType) {
         User current = getCurrentUser();
         boolean liked = likeRepository.findByUserIdAndTargetIdAndTargetType(
-                current.getId(), targetId, targetType != null ? targetType.toUpperCase() : "USER").isPresent();
+                current.getId(), targetId, targetType != null ? targetType.toUpperCase() : "USER")
+                .isPresent();
         return new LikeCheckDto(liked);
     }
 
