@@ -278,8 +278,15 @@ public class SocialService {
         long followers = followRepository.countByUserId(userId);
         long following = followRepository.countByFollowerId(userId);
         long likes = likeRepository.countByTargetIdAndTargetType(userId, "USER");
+        
         Double avgRating = reviewRepository.getAverageRatingByTargetIdAndTargetType(userId, "USER");
-
-        return new SocialStatsDto(followers, following, likes, avgRating != null ? avgRating : 0.0);
+        
+        // Safe handling of null average
+        return new SocialStatsDto(
+            followers, 
+            following, 
+            likes, 
+            avgRating != null ? avgRating : 0.0
+        );
     }
 }
