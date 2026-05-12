@@ -83,10 +83,20 @@ public class SocialService {
     // ====================== LIKE ======================
     public void like(String targetId, String targetType) {
         User current = getCurrentUser();
+        String type = targetType != null ? targetType.toUpperCase() : "USER";
+
+        // Check if user already liked this target
+        boolean alreadyLiked = likeRepository.findByUserIdAndTargetIdAndTargetType(
+                current.getId(), targetId, type).isPresent();
+
+        if (alreadyLiked) {
+            throw new CustomException("You have already liked this " + type.toLowerCase());
+        }
+
         Like like = new Like();
         like.setUserId(current.getId());
         like.setTargetId(targetId);
-        like.setTargetType(targetType != null ? targetType.toUpperCase() : "USER");
+        like.setTargetType(type);
         likeRepository.save(like);
     }
 
