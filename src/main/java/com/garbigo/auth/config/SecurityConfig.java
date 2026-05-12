@@ -55,6 +55,7 @@ public class SecurityConfig {
                     "/auth/verify",
                     "/auth/reset-password/request",
                     "/auth/reset-password/confirm",
+                    "/auth/resend-verification",
                     "/auth/social/google",
                     "/auth/social/facebook",
                     "/auth/social/apple"
