@@ -1,9 +1,13 @@
 package com.garbigo.auth.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.Instant;
 
+@Data
 @Document(collection = "live_locations")
 public class LiveLocation {
 
@@ -11,26 +15,13 @@ public class LiveLocation {
     private String id;
 
     private String userId;
-
     private double latitude;
-
     private double longitude;
 
-    private Instant timestamp = Instant.now();
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    private Instant timestamp;
 
-    // Getters and Setters
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
-
-    public double getLatitude() { return latitude; }
-    public void setLatitude(double latitude) { this.latitude = latitude; }
-
-    public double getLongitude() { return longitude; }
-    public void setLongitude(double longitude) { this.longitude = longitude; }
-
-    public Instant getTimestamp() { return timestamp; }
-    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+    public LiveLocation() {
+        this.timestamp = Instant.now();
+    }
 }

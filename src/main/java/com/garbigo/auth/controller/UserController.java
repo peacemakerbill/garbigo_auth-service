@@ -40,7 +40,6 @@ public class UserController {
     }
 
     // ====================== LIVE LOCATION ======================
-    // Live location update from mobile app (Collectors)
     @PostMapping("/live-location")
     public ResponseEntity<?> updateLiveLocation(
             @AuthenticationPrincipal User authenticatedUser,
@@ -58,11 +57,10 @@ public class UserController {
             double latitude = Double.parseDouble(latObj.toString());
             double longitude = Double.parseDouble(lngObj.toString());
 
-            // 1. Update Redis - Fast access for current location
-            liveLocationRedisService.updateLiveLocation(
-                    authenticatedUser.getId(), latitude, longitude);
+            // Update Redis (Current Live Location)
+            liveLocationRedisService.updateLiveLocation(authenticatedUser.getId(), latitude, longitude);
 
-            // 2. Save to MongoDB for history & analytics
+            // Save to MongoDB for history
             LiveLocation liveLocation = new LiveLocation();
             liveLocation.setUserId(authenticatedUser.getId());
             liveLocation.setLatitude(latitude);
@@ -75,27 +73,23 @@ public class UserController {
                     "message", "Live location updated successfully",
                     "userId", authenticatedUser.getId(),
                     "latitude", latitude,
-                    "longitude", longitude,
-                    "timestamp", Instant.now()
+                    "longitude", longitude
             ));
 
-        } catch (NumberFormatException e) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Invalid latitude or longitude format"));
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(Map.of("error", "Failed to update location: " + e.getMessage()));
         }
     }
 
-    // Get current live location (from Redis - very fast)
+    // Get Current Live Location (from Redis - Fast)
     @GetMapping("/live-location/{userId}")
     public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId) {
         LiveLocation location = liveLocationRedisService.getCurrentLocation(userId);
         
         if (location == null) {
             return ResponseEntity.ok(Map.of(
-                "message", "No live location available",
+                "message", "No active live location found",
                 "userId", userId,
                 "active", false
             ));
@@ -105,29 +99,24 @@ public class UserController {
     }
 
     // ====================== ADMIN ENDPOINTS ======================
-
-    // Admin: Get all users
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<UserDto>> getAllUsers(@RequestParam(required = false) String search) {
         return ResponseEntity.ok(userService.getAllUsers(search));
     }
 
-    // Admin: Create user
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<UserDto> createUser(@RequestBody User user) {
         return ResponseEntity.ok(userService.createUser(user));
     }
 
-    // Admin: Update user
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserDto> updateUser(@PathVariable String id, @RequestBody User user) {
         return ResponseEntity.ok(userService.updateUser(id, user));
     }
 
-    // Admin: Delete user
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable String id) {
@@ -135,7 +124,6 @@ public class UserController {
         return ResponseEntity.ok("User deleted");
     }
 
-    // Admin: Archive/Unarchive
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/archive")
     public ResponseEntity<String> archiveUser(@PathVariable String id) {
@@ -150,7 +138,6 @@ public class UserController {
         return ResponseEntity.ok("User unarchived");
     }
 
-    // Admin: Activate/Deactivate
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/activate")
     public ResponseEntity<String> activateUser(@PathVariable String id) {
@@ -165,7 +152,6 @@ public class UserController {
         return ResponseEntity.ok("User deactivated");
     }
 
-    // Admin: Verify/Unverify
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/verify")
     public ResponseEntity<String> verifyUser(@PathVariable String id) {
