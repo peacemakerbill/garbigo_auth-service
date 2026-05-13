@@ -1,0 +1,12 @@
+{"properties": [
+  {
+    "name": "rate-limit.requests-per-minute",
+    "type": "java.lang.String",
+    "description": "A description for 'rate-limit.requests-per-minute'"
+  },
+  {
+    "name": "rabbitmq.queue.user-created",
+    "type": "java.lang.String",
+    "description": "A description for 'rabbitmq.queue.user-created'"
+  }
+]}
