@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -90,8 +91,7 @@ public class UserController {
         }
     }
 
- // Get current live location (from Redis) - Only for Authenticated Users
- // Get current live location with user details
+ // Get current live location with user details (from Redis) - Only for Authenticated Users
     @GetMapping("/live-location/{userId}")
     public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId,
                                                     @AuthenticationPrincipal User currentUser) {
@@ -115,24 +115,36 @@ public class UserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found"));
 
-        String fullName = (user.getFirstName() != null ? user.getFirstName() : "") +
-                         (user.getLastName() != null ? " " + user.getLastName() : "");
+        String fullName = buildFullName(user);
 
         LiveLocationResponseDto response = new LiveLocationResponseDto(
                 user.getId(),
                 user.getFirstName(),
+                user.getMiddleName(),
                 user.getLastName(),
-                fullName.trim(),
+                fullName,
                 user.getEmail(),
                 user.getPhoneNumber(),
                 user.getProfilePictureUrl(),
+                user.getRole(),                    // ← Role added
                 location.getLatitude(),
                 location.getLongitude(),
-                location.getTimestamp(),
+                location.getTimestamp() != null ? location.getTimestamp() : Instant.now(),
                 true
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    // Helper method (you can keep this in the controller or move to UserService)
+    private String buildFullName(User user) {
+        StringBuilder sb = new StringBuilder();
+
+        if (user.getFirstName() != null) sb.append(user.getFirstName().trim());
+        if (user.getMiddleName() != null) sb.append(" ").append(user.getMiddleName().trim());
+        if (user.getLastName() != null) sb.append(" ").append(user.getLastName().trim());
+
+        return sb.toString().trim();
     }
 
     // ====================== ADMIN ENDPOINTS ======================
