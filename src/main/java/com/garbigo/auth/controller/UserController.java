@@ -5,6 +5,7 @@ import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.model.LiveLocation;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.LiveLocationRepository;
+import com.garbigo.auth.service.LiveLocationRedisService;
 import com.garbigo.auth.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,30 +22,34 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final LiveLocationRedisService liveLocationRedisService;
 
     @Autowired
     private LiveLocationRepository liveLocationRepository;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, 
+                         LiveLocationRedisService liveLocationRedisService) {
         this.userService = userService;
+        this.liveLocationRedisService = liveLocationRedisService;
     }
 
-    // Update current user profile (existing)
+    // Update current user profile
     @PutMapping("/profile")
     public ResponseEntity<UserDto> updateProfile(@RequestBody ProfileUpdateRequest request) {
         return ResponseEntity.ok(userService.updateProfile(request));
     }
 
-    // Live location update from mobile app (Collector)
+    // ====================== LIVE LOCATION ======================
+    // Live location update from mobile app (Collectors)
     @PostMapping("/live-location")
     public ResponseEntity<?> updateLiveLocation(
             @AuthenticationPrincipal User authenticatedUser,
             @RequestBody Map<String, Object> locationData) {
 
         try {
-            // Validate and parse required fields
             Object latObj = locationData.get("latitude");
             Object lngObj = locationData.get("longitude");
+
             if (latObj == null || lngObj == null) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "latitude and longitude are required"));
@@ -53,27 +58,25 @@ public class UserController {
             double latitude = Double.parseDouble(latObj.toString());
             double longitude = Double.parseDouble(lngObj.toString());
 
-            // Optional timestamp, default to now
-            long timestampMillis = System.currentTimeMillis();
-            if (locationData.containsKey("timestamp")) {
-                timestampMillis = Long.parseLong(locationData.get("timestamp").toString());
-            }
-            Instant timestamp = Instant.ofEpochMilli(timestampMillis);
+            // 1. Update Redis - Fast access for current location
+            liveLocationRedisService.updateLiveLocation(
+                    authenticatedUser.getId(), latitude, longitude);
 
-            // Save live location
+            // 2. Save to MongoDB for history & analytics
             LiveLocation liveLocation = new LiveLocation();
             liveLocation.setUserId(authenticatedUser.getId());
             liveLocation.setLatitude(latitude);
             liveLocation.setLongitude(longitude);
-            liveLocation.setTimestamp(timestamp);
+            liveLocation.setTimestamp(Instant.now());
 
             liveLocationRepository.save(liveLocation);
 
             return ResponseEntity.ok(Map.of(
-                    "message", "Location updated successfully",
+                    "message", "Live location updated successfully",
                     "userId", authenticatedUser.getId(),
                     "latitude", latitude,
-                    "longitude", longitude
+                    "longitude", longitude,
+                    "timestamp", Instant.now()
             ));
 
         } catch (NumberFormatException e) {
@@ -81,9 +84,27 @@ public class UserController {
                     .body(Map.of("error", "Invalid latitude or longitude format"));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(Map.of("error", "Failed to save location"));
+                    .body(Map.of("error", "Failed to update location: " + e.getMessage()));
         }
     }
+
+    // Get current live location (from Redis - very fast)
+    @GetMapping("/live-location/{userId}")
+    public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId) {
+        LiveLocation location = liveLocationRedisService.getCurrentLocation(userId);
+        
+        if (location == null) {
+            return ResponseEntity.ok(Map.of(
+                "message", "No live location available",
+                "userId", userId,
+                "active", false
+            ));
+        }
+
+        return ResponseEntity.ok(location);
+    }
+
+    // ====================== ADMIN ENDPOINTS ======================
 
     // Admin: Get all users
     @PreAuthorize("hasRole('ADMIN')")
