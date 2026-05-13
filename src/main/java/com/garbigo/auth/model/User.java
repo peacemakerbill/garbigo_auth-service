@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -16,15 +17,22 @@ import java.util.List;
 @Data
 @Document(collection = "users")
 public class User implements UserDetails {
+
     @Id
     private String id;
 
     private String username;
+
     private String firstName;
     private String middleName;
     private String lastName;
+
+    @Indexed(unique = true)           // Unique index on email
     private String email;
+
+    @Indexed(unique = true)           // Unique index on phoneNumber
     private String phoneNumber;
+
     private String homeAddress;
     private String password;
     private String profilePictureUrl;
@@ -56,7 +64,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email;
+        return email;   // Using email as username for Spring Security
     }
 
     @Override
@@ -76,6 +84,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return verified && active;
+        return verified && active && !archived;
     }
 }

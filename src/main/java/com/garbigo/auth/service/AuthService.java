@@ -70,8 +70,15 @@ public class AuthService {
         try {
             rateLimiter.checkRateLimit();
 
+            // === Duplicate Checks ===
             if (userRepository.findByEmail(request.getEmail()).isPresent()) {
                 throw new CustomException("Email already in use");
+            }
+
+            if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
+                if (userRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent()) {
+                    throw new CustomException("Phone number already in use");
+                }
             }
 
             User user = new User();
