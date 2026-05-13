@@ -1,10 +1,13 @@
 package com.garbigo.auth.controller;
 
+import com.garbigo.auth.dto.LiveLocationResponseDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
+import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.LiveLocation;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.LiveLocationRepository;
+import com.garbigo.auth.repository.UserRepository;
 import com.garbigo.auth.service.LiveLocationRedisService;
 import com.garbigo.auth.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +25,8 @@ public class UserController {
 
     private final UserService userService;
     private final LiveLocationRedisService liveLocationRedisService;
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private LiveLocationRepository liveLocationRepository;
@@ -86,12 +91,14 @@ public class UserController {
     }
 
  // Get current live location (from Redis) - Only for Authenticated Users
+ // Get current live location with user details
     @GetMapping("/live-location/{userId}")
     public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId,
                                                     @AuthenticationPrincipal User currentUser) {
 
         if (currentUser == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "You must be logged in to view live locations"));
+            return ResponseEntity.status(401)
+                    .body(Map.of("error", "You must be logged in to view live locations"));
         }
 
         LiveLocation location = liveLocationRedisService.getCurrentLocation(userId);
@@ -104,7 +111,28 @@ public class UserController {
             ));
         }
 
-        return ResponseEntity.ok(location);
+        // Fetch user details
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found"));
+
+        String fullName = (user.getFirstName() != null ? user.getFirstName() : "") +
+                         (user.getLastName() != null ? " " + user.getLastName() : "");
+
+        LiveLocationResponseDto response = new LiveLocationResponseDto(
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                fullName.trim(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getProfilePictureUrl(),
+                location.getLatitude(),
+                location.getLongitude(),
+                location.getTimestamp(),
+                true
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     // ====================== ADMIN ENDPOINTS ======================
