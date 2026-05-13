@@ -1,7 +1,7 @@
 package com.garbigo.auth.model;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -18,10 +18,6 @@ public class LiveLocation {
     private double latitude;
     private double longitude;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
-    private Instant timestamp;
-
-    public LiveLocation() {
-        this.timestamp = Instant.now();
-    }
+    @CreatedDate
+    private Instant timestamp;     // MongoDB will auto-set this
 }

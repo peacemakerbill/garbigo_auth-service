@@ -13,7 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +39,7 @@ public class UserController {
     }
 
     // ====================== LIVE LOCATION ======================
+    
     @PostMapping("/live-location")
     public ResponseEntity<?> updateLiveLocation(
             @AuthenticationPrincipal User authenticatedUser,
@@ -57,15 +57,15 @@ public class UserController {
             double latitude = Double.parseDouble(latObj.toString());
             double longitude = Double.parseDouble(lngObj.toString());
 
-            // Update Redis (Current Live Location)
-            liveLocationRedisService.updateLiveLocation(authenticatedUser.getId(), latitude, longitude);
+            // 1. Update Redis (Fast current location)
+            liveLocationRedisService.updateLiveLocation(
+                    authenticatedUser.getId(), latitude, longitude);
 
-            // Save to MongoDB for history
+            // 2. Save to MongoDB for history (@CreatedDate will handle timestamp)
             LiveLocation liveLocation = new LiveLocation();
             liveLocation.setUserId(authenticatedUser.getId());
             liveLocation.setLatitude(latitude);
             liveLocation.setLongitude(longitude);
-            liveLocation.setTimestamp(Instant.now());
 
             liveLocationRepository.save(liveLocation);
 
@@ -76,13 +76,16 @@ public class UserController {
                     "longitude", longitude
             ));
 
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid latitude or longitude format"));
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(Map.of("error", "Failed to update location: " + e.getMessage()));
         }
     }
 
-    // Get Current Live Location (from Redis - Fast)
+    // Get current live location (from Redis)
     @GetMapping("/live-location/{userId}")
     public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId) {
         LiveLocation location = liveLocationRedisService.getCurrentLocation(userId);
@@ -99,6 +102,7 @@ public class UserController {
     }
 
     // ====================== ADMIN ENDPOINTS ======================
+
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<UserDto>> getAllUsers(@RequestParam(required = false) String search) {
