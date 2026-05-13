@@ -1,5 +1,6 @@
 package com.garbigo.auth.repository;
 
+import com.garbigo.auth.model.Role;
 import com.garbigo.auth.model.User;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
@@ -11,6 +12,8 @@ public interface UserRepository extends MongoRepository<User, String> {
     
     Optional<User> findByEmail(String email);
     Optional<User> findByPhoneNumber(String phoneNumber);
+    
+    long countByRole(Role role);
 
     @Query("{ $or: [ { email: { $regex: ?0, $options: 'i' } }, { firstName: { $regex: ?0, $options: 'i' } }, { lastName: { $regex: ?0, $options: 'i' } } ] }")
     List<User> searchUsers(String keyword);
