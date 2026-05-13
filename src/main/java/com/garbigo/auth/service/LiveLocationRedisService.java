@@ -5,6 +5,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Map;
 
 @Service
 public class LiveLocationRedisService {
@@ -36,16 +37,55 @@ public class LiveLocationRedisService {
         Object obj = redisTemplate.opsForValue().get(key);
 
         if (obj == null) {
-            System.out.println("No data in Redis for: " + key);
+            System.out.println("No data found in Redis for key: " + key);
             return null;
         }
 
-        if (obj instanceof LiveLocation liveLocation) {
-            System.out.println("Successfully retrieved LiveLocation from Redis");
-            return liveLocation;
-        } else {
-            System.out.println("Wrong type received: " + obj.getClass().getName());
-            return null;
+        // Handle LinkedHashMap from Redis
+        if (obj instanceof Map) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) obj;
+
+                LiveLocation location = new LiveLocation();
+                
+                location.setId((String) map.get("id"));
+                location.setUserId((String) map.get("userId"));
+                
+                // Handle latitude and longitude safely
+                if (map.get("latitude") != null) {
+                    location.setLatitude(Double.parseDouble(map.get("latitude").toString()));
+                }
+                if (map.get("longitude") != null) {
+                    location.setLongitude(Double.parseDouble(map.get("longitude").toString()));
+                }
+
+                // Handle timestamp
+                if (map.get("timestamp") != null) {
+                    // Try to parse timestamp if it's a number (epoch) or string
+                    Object ts = map.get("timestamp");
+                    if (ts instanceof Number) {
+                        // You can set it if your model supports Long timestamp
+                        System.out.println("Timestamp found: " + ts);
+                    }
+                }
+
+                System.out.println("Successfully converted LinkedHashMap to LiveLocation for user: " + userId);
+                return location;
+
+            } catch (Exception e) {
+                System.out.println("Error converting Redis data: " + e.getMessage());
+                e.printStackTrace();
+                return null;
+            }
         }
+
+        // If it's already the correct type
+        if (obj instanceof LiveLocation) {
+            return (LiveLocation) obj;
+        }
+
+        System.out.println("Unknown type received: " + obj.getClass().getName());
+        return null;
     }
 }

@@ -20,8 +20,4 @@ public class LiveLocation {
 
     @CreatedDate
     private Instant timestamp;
-
-    public LiveLocation() {
-        // MongoDB will handle timestamp
-    }
 }
