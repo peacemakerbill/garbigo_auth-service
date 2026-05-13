@@ -24,19 +24,23 @@ public class RateLimiter {
     }
 
     public void checkRateLimit() {
+        String requestURI = request.getRequestURI();
+        
+        // Skip rate limiting for live location endpoints (high frequency)
+        if (requestURI.contains("/live-location")) {
+            return;  // Bypass rate limiter
+        }
+
         String key = getClientIdentifier();
         
-        // Use Redisson's atomic operations for thread safety
         Integer currentCount = rateLimitCache.get(key);
         
         if (currentCount == null) {
-            // First request in the window
             rateLimitCache.put(key, 1, rateLimitProperties.windowInSeconds(), TimeUnit.SECONDS);
         } else if (currentCount >= rateLimitProperties.requestsPerMinute()) {
             throw new CustomException("Too many requests. Please try again in " + 
                                      rateLimitProperties.windowInSeconds() + " seconds.");
         } else {
-            // Increment the count
             rateLimitCache.put(key, currentCount + 1, rateLimitProperties.windowInSeconds(), TimeUnit.SECONDS);
         }
     }
