@@ -19,5 +19,9 @@ public class LiveLocation {
     private double longitude;
 
     @CreatedDate
-    private Instant timestamp;     // MongoDB will auto-set this
+    private Instant timestamp;
+
+    public LiveLocation() {
+        // MongoDB will handle timestamp
+    }
 }

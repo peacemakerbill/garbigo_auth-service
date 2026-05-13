@@ -1,5 +1,7 @@
 package com.garbigo.auth.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -15,14 +17,23 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Use JSON serializer for objects
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(Object.class);
-        
+        // Configure ObjectMapper with JavaTime support
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.findAndRegisterModules();
+
+        Jackson2JsonRedisSerializer<Object> serializer = 
+                new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
+
+        // Key serializer
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(serializer);
         template.setHashKeySerializer(new StringRedisSerializer());
+
+        // Value serializer
+        template.setValueSerializer(serializer);
         template.setHashValueSerializer(serializer);
 
+        template.afterPropertiesSet();
         return template;
     }
 }
