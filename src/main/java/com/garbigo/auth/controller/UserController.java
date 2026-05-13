@@ -85,9 +85,15 @@ public class UserController {
         }
     }
 
-    // Get current live location (from Redis)
+ // Get current live location (from Redis) - Only for Authenticated Users
     @GetMapping("/live-location/{userId}")
-    public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId) {
+    public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId,
+                                                    @AuthenticationPrincipal User currentUser) {
+
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "You must be logged in to view live locations"));
+        }
+
         LiveLocation location = liveLocationRedisService.getCurrentLocation(userId);
         
         if (location == null) {

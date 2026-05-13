@@ -92,12 +92,6 @@
             <artifactId>redisson-spring-boot-starter</artifactId>
             <version>3.32.0</version>
         </dependency>
-        
-        <!-- Jackson JSR310 for java.time support (Instant, LocalDateTime, etc.) -->
-		<dependency>
-		    <groupId>com.fasterxml.jackson.datatype</groupId>
-		    <artifactId>jackson-datatype-jsr310</artifactId>
-		</dependency>
 
         <!-- ModelMapper -->
         <dependency>

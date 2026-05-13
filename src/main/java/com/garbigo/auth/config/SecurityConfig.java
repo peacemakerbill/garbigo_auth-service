@@ -44,10 +44,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // === PUBLIC ENDPOINTS - NO AUTH REQUIRED ===
+                // === PUBLIC ENDPOINTS ===
                 .requestMatchers(
                     "/",
                     "/auth/signup",
@@ -61,10 +61,10 @@ public class SecurityConfig {
                     "/auth/social/apple"
                 ).permitAll()
 
-                // Allow OPTIONS preflight for CORS (critical for Postman & frontend)
+                // Allow preflight requests (CORS)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Optional: Allow common public paths
+                // Public actuator & docs
                 .requestMatchers(
                     "/actuator/**",
                     "/swagger-ui/**",
@@ -72,13 +72,17 @@ public class SecurityConfig {
                     "/favicon.ico"
                 ).permitAll()
 
-                // === PROTECTED ENDPOINTS ===
-                .requestMatchers("/users/profile", "/users/live-location").authenticated()
+                // ====================== PROTECTED ENDPOINTS ======================
+                // User profile update
+                .requestMatchers("/users/profile").authenticated()
 
-                // === ADMIN ONLY ===
-                .requestMatchers("/users", "/users/**").hasRole("ADMIN")
+                // Live location endpoints (GET current location)
+                .requestMatchers("/users/live-location/**").authenticated()
 
-                // === EVERYTHING ELSE ===
+                // ====================== ADMIN ONLY ======================
+                .requestMatchers("/users/**").hasRole("ADMIN")
+
+                // All other requests require authentication
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -86,11 +90,11 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // CORS Configuration - Allows Postman and Flutter frontend to work
+    // CORS Configuration
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*")); // For testing - restrict in production
+        config.setAllowedOriginPatterns(List.of("*")); 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
