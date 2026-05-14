@@ -60,6 +60,9 @@ public class SecurityConfig {
                     "/auth/social/facebook",
                     "/auth/social/apple"
                 ).permitAll()
+                
+                // Allow clients to search collectors
+                .requestMatchers(HttpMethod.GET, "/users/collectors", "/users/collectors/**").authenticated()
 
                 // Allow preflight requests (CORS)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

@@ -5,6 +5,7 @@ import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.LiveLocation;
+import com.garbigo.auth.model.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.LiveLocationRepository;
 import com.garbigo.auth.repository.UserRepository;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/users")
@@ -26,6 +28,7 @@ public class UserController {
 
     private final UserService userService;
     private final LiveLocationRedisService liveLocationRedisService;
+
     @Autowired
     private UserRepository userRepository;
 
@@ -63,11 +66,9 @@ public class UserController {
             double latitude = Double.parseDouble(latObj.toString());
             double longitude = Double.parseDouble(lngObj.toString());
 
-            // 1. Update Redis (Fast current location)
             liveLocationRedisService.updateLiveLocation(
                     authenticatedUser.getId(), latitude, longitude);
 
-            // 2. Save to MongoDB for history (@CreatedDate will handle timestamp)
             LiveLocation liveLocation = new LiveLocation();
             liveLocation.setUserId(authenticatedUser.getId());
             liveLocation.setLatitude(latitude);
@@ -91,7 +92,6 @@ public class UserController {
         }
     }
 
- // Get current live location with user details (from Redis) - Only for Authenticated Users
     @GetMapping("/live-location/{userId}")
     public ResponseEntity<?> getCurrentLiveLocation(@PathVariable String userId,
                                                     @AuthenticationPrincipal User currentUser) {
@@ -111,7 +111,6 @@ public class UserController {
             ));
         }
 
-        // Fetch user details
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found"));
 
@@ -126,7 +125,7 @@ public class UserController {
                 user.getEmail(),
                 user.getPhoneNumber(),
                 user.getProfilePictureUrl(),
-                user.getRole(),                    // ← Role added
+                user.getRole(),
                 location.getLatitude(),
                 location.getLongitude(),
                 location.getTimestamp() != null ? location.getTimestamp() : Instant.now(),
@@ -136,14 +135,27 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    // Helper method (you can keep this in the controller or move to UserService)
+    // ====================== CLIENT: SEARCH COLLECTORS ======================
+    @GetMapping("/collectors")
+    public ResponseEntity<List<UserDto>> getCollectors(
+            @RequestParam(required = false) String search) {
+        
+        List<UserDto> allUsers = userService.getAllUsers(search);
+        
+        // Filter only collectors
+        List<UserDto> collectors = allUsers.stream()
+                .filter(user -> user.getRole() == Role.COLLECTOR)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(collectors);
+    }
+
+    // Helper method
     private String buildFullName(User user) {
         StringBuilder sb = new StringBuilder();
-
         if (user.getFirstName() != null) sb.append(user.getFirstName().trim());
         if (user.getMiddleName() != null) sb.append(" ").append(user.getMiddleName().trim());
         if (user.getLastName() != null) sb.append(" ").append(user.getLastName().trim());
-
         return sb.toString().trim();
     }
 
