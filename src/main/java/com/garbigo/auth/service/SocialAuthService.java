@@ -3,6 +3,7 @@ package com.garbigo.auth.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.garbigo.auth.dto.AuthResponse;
 import com.garbigo.auth.dto.SocialLoginRequest;
+import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.Role;
 import com.garbigo.auth.model.User;
@@ -14,6 +15,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class SocialAuthService {
     private final JwtUtil jwtUtil;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ModelMapper modelMapper = new ModelMapper();
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -87,7 +90,7 @@ public class SocialAuthService {
 
             ResponseEntity<Map> response = restTemplate.getForEntity(debugUrl, Map.class);
             @SuppressWarnings("unchecked")
-			Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
 
             if (data == null || !(Boolean) data.get("is_valid")) {
                 throw new CustomException("Invalid Facebook token");
@@ -184,10 +187,13 @@ public class SocialAuthService {
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        AuthResponse response = new AuthResponse();
-        response.setToken(jwtUtil.generateToken(user));
-        response.setRole(user.getRole().name());
-        // dashboardUrl removed - handled by frontend
-        return response;
+        UserDto userDto = modelMapper.map(user, UserDto.class);
+
+        return new AuthResponse(
+                jwtUtil.generateToken(user),
+                user.getRole().name(),
+                user.isVerified(),
+                userDto
+        );
     }
 }
