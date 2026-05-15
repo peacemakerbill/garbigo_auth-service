@@ -15,6 +15,18 @@ public class SocialController {
 
     private final SocialService socialService;
 
+    // ====================== PROFILE SUMMARY ======================
+    /**
+     * Returns detailed user profile summary including:
+     * - Basic info (name, username, avatar)
+     * - Contact info (email, phone)
+     * - Current live location (if available)
+     */
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<UserSummaryDto> getProfileSummary(@PathVariable String userId) {
+        return ResponseEntity.ok(socialService.getUserProfileSummary(userId));
+    }
+
     // ====================== FOLLOW ======================
     @PostMapping("/follow/{userId}")
     public ResponseEntity<String> follow(@PathVariable String userId) {

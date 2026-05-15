@@ -11,4 +11,9 @@ public class UserSummaryDto {
     private String firstName;
     private String lastName;
     private String profilePictureUrl;
+
+    // Extended fields
+    private String email;
+    private String phoneNumber;
+    private LiveLocationResponseDto currentLocation; // null if no active location
 }

@@ -4,6 +4,7 @@ import com.garbigo.auth.dto.*;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.Follow;
 import com.garbigo.auth.model.Like;
+import com.garbigo.auth.model.LiveLocation;
 import com.garbigo.auth.model.Review;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.FollowRepository;
@@ -14,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -26,15 +28,18 @@ public class SocialService {
     private final LikeRepository likeRepository;
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final LiveLocationRedisService liveLocationRedisService;
 
     public SocialService(FollowRepository followRepository,
                          LikeRepository likeRepository,
                          ReviewRepository reviewRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         LiveLocationRedisService liveLocationRedisService) {
         this.followRepository = followRepository;
         this.likeRepository = likeRepository;
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;
+        this.liveLocationRedisService = liveLocationRedisService;
     }
 
     private User getCurrentUser() {
@@ -45,15 +50,61 @@ public class SocialService {
         return (User) authentication.getPrincipal();
     }
 
+    // ====================== PROFILE SUMMARY (with email, phone, live location) ======================
+    public UserSummaryDto getUserProfileSummary(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found"));
+
+        // Fetch live location from Redis
+        LiveLocation liveLocation = liveLocationRedisService.getCurrentLocation(userId);
+
+        LiveLocationResponseDto currentLocationDto = null;
+        if (liveLocation != null) {
+            currentLocationDto = new LiveLocationResponseDto(
+                    user.getId(),
+                    user.getFirstName(),
+                    user.getMiddleName(),
+                    user.getLastName(),
+                    buildFullName(user),
+                    user.getEmail(),
+                    user.getPhoneNumber(),
+                    user.getProfilePictureUrl(),
+                    user.getRole(),
+                    liveLocation.getLatitude(),
+                    liveLocation.getLongitude(),
+                    liveLocation.getTimestamp() != null ? liveLocation.getTimestamp() : Instant.now(),
+                    true
+            );
+        }
+
+        return new UserSummaryDto(
+                user.getId(),
+                user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getProfilePictureUrl(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                currentLocationDto
+        );
+    }
+
+    private String buildFullName(User user) {
+        StringBuilder sb = new StringBuilder();
+        if (user.getFirstName() != null) sb.append(user.getFirstName().trim());
+        if (user.getMiddleName() != null) sb.append(" ").append(user.getMiddleName().trim());
+        if (user.getLastName() != null) sb.append(" ").append(user.getLastName().trim());
+        return sb.toString().trim();
+    }
+
     // ====================== FOLLOW ======================
     public void follow(String targetUserId) {
         User current = getCurrentUser();
-        
+
         if (current.getId().equals(targetUserId)) {
             throw new CustomException("You cannot follow yourself");
         }
 
-        // Check if already following
         boolean alreadyFollowing = followRepository.findByUserIdAndFollowerId(targetUserId, current.getId()).isPresent();
 
         if (alreadyFollowing) {
@@ -69,7 +120,6 @@ public class SocialService {
     public void unfollow(String targetUserId) {
         User current = getCurrentUser();
 
-        // Check if actually following before unfollowing
         boolean isFollowing = followRepository.findByUserIdAndFollowerId(targetUserId, current.getId()).isPresent();
 
         if (!isFollowing) {
@@ -102,7 +152,6 @@ public class SocialService {
         User current = getCurrentUser();
         String type = targetType != null ? targetType.toUpperCase() : "USER";
 
-        // Prevent duplicate likes
         boolean alreadyLiked = likeRepository.findByUserIdAndTargetIdAndTargetType(
                 current.getId(), targetId, type).isPresent();
 
@@ -121,7 +170,6 @@ public class SocialService {
         User current = getCurrentUser();
         String type = targetType != null ? targetType.toUpperCase() : "USER";
 
-        // Check if like exists before deleting
         boolean liked = likeRepository.findByUserIdAndTargetIdAndTargetType(
                 current.getId(), targetId, type).isPresent();
 
@@ -141,10 +189,9 @@ public class SocialService {
         return new LikeCheckDto(liked);
     }
 
-    // ====================== Get Users Who Liked ======================
     public List<UserSummaryDto> getUsersWhoLiked(String targetId, String targetType) {
         String type = targetType != null ? targetType.toUpperCase() : "USER";
-        
+
         List<String> likerIds = likeRepository.findByTargetIdAndTargetType(targetId, type)
                 .stream()
                 .map(Like::getUserId)
@@ -219,7 +266,7 @@ public class SocialService {
         return reviews.stream()
                 .map(r -> {
                     User reviewer = userMap.get(r.getUserId());
-                    String fullName = reviewer != null 
+                    String fullName = reviewer != null
                             ? reviewer.getFirstName() + " " + (reviewer.getLastName() != null ? reviewer.getLastName() : "")
                             : "Unknown User";
 
@@ -236,10 +283,9 @@ public class SocialService {
                 .collect(Collectors.toList());
     }
 
-    // ====================== Get Users Who Reviewed ======================
     public List<UserSummaryDto> getUsersWhoReviewed(String targetId, String targetType) {
         String type = targetType != null ? targetType.toUpperCase() : "USER";
-        
+
         List<String> reviewerIds = reviewRepository.findByTargetIdAndTargetType(targetId, type)
                 .stream()
                 .map(Review::getUserId)
@@ -260,14 +306,17 @@ public class SocialService {
                 .map(id -> {
                     User u = userMap.get(id);
                     if (u == null) {
-                        return new UserSummaryDto(id, null, null, null, null);
+                        return new UserSummaryDto(id, null, null, null, null, null, null, null);
                     }
                     return new UserSummaryDto(
                             u.getId(),
                             u.getUsername(),
                             u.getFirstName(),
                             u.getLastName(),
-                            u.getProfilePictureUrl()
+                            u.getProfilePictureUrl(),
+                            u.getEmail(),
+                            u.getPhoneNumber(),
+                            null   // Live location only available in single profile summary
                     );
                 })
                 .collect(Collectors.toList());
@@ -278,15 +327,14 @@ public class SocialService {
         long followers = followRepository.countByUserId(userId);
         long following = followRepository.countByFollowerId(userId);
         long likes = likeRepository.countByTargetIdAndTargetType(userId, "USER");
-        
+
         Double avgRating = reviewRepository.getAverageRatingByTargetIdAndTargetType(userId, "USER");
-        
-        // Safe handling of null average
+
         return new SocialStatsDto(
-            followers, 
-            following, 
-            likes, 
-            avgRating != null ? avgRating : 0.0
+                followers,
+                following,
+                likes,
+                avgRating != null ? avgRating : 0.0
         );
     }
 }
