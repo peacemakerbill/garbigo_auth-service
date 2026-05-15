@@ -40,6 +40,17 @@ public class UserController {
         this.userService = userService;
         this.liveLocationRedisService = liveLocationRedisService;
     }
+    
+ // ====================== CURRENT USER PROFILE ======================
+    @GetMapping("/profile")
+    public ResponseEntity<UserDto> getCurrentProfile(@AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
+        UserDto userDto = userService.getCurrentUserDto(currentUser.getId());
+        return ResponseEntity.ok(userDto);
+    }
 
     // Update current user profile
     @PutMapping("/profile")

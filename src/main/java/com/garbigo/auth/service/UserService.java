@@ -32,6 +32,13 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
     }
+    
+    public UserDto getCurrentUserDto(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found"));
+        
+        return modelMapper.map(user, UserDto.class);
+    }
 
     // ====================== USER PROFILE ======================
     public UserDto updateProfile(ProfileUpdateRequest request) {
