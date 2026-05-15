@@ -50,30 +50,23 @@ public class SocialService {
         return (User) authentication.getPrincipal();
     }
 
-    // ====================== PROFILE SUMMARY (with email, phone, live location) ======================
+    // ====================== PROFILE SUMMARY (Custom Format) ======================
     public UserSummaryDto getUserProfileSummary(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found"));
 
+        String fullName = buildFullName(user);
+
         // Fetch live location from Redis
         LiveLocation liveLocation = liveLocationRedisService.getCurrentLocation(userId);
+        CurrentLocationDto currentLocationDto = null;
 
-        LiveLocationResponseDto currentLocationDto = null;
         if (liveLocation != null) {
-            currentLocationDto = new LiveLocationResponseDto(
+            currentLocationDto = new CurrentLocationDto(
                     user.getId(),
-                    user.getFirstName(),
-                    user.getMiddleName(),
-                    user.getLastName(),
-                    buildFullName(user),
-                    user.getEmail(),
-                    user.getPhoneNumber(),
-                    user.getProfilePictureUrl(),
-                    user.getRole(),
                     liveLocation.getLatitude(),
                     liveLocation.getLongitude(),
-                    liveLocation.getTimestamp() != null ? liveLocation.getTimestamp() : Instant.now(),
-                    true
+                    liveLocation.getTimestamp() != null ? liveLocation.getTimestamp() : Instant.now()
             );
         }
 
@@ -81,10 +74,14 @@ public class SocialService {
                 user.getId(),
                 user.getUsername(),
                 user.getFirstName(),
+                user.getMiddleName(),
                 user.getLastName(),
+                fullName,
                 user.getProfilePictureUrl(),
                 user.getEmail(),
                 user.getPhoneNumber(),
+                user.getRole() != null ? user.getRole().name() : "CLIENT",
+                user.isActive(),
                 currentLocationDto
         );
     }
@@ -306,17 +303,22 @@ public class SocialService {
                 .map(id -> {
                     User u = userMap.get(id);
                     if (u == null) {
-                        return new UserSummaryDto(id, null, null, null, null, null, null, null);
+                        return new UserSummaryDto(id, null, null, null, null, null, null, null, null, "CLIENT", true, null);
                     }
+                    String fullName = buildFullName(u);
                     return new UserSummaryDto(
                             u.getId(),
                             u.getUsername(),
                             u.getFirstName(),
+                            u.getMiddleName(),
                             u.getLastName(),
+                            fullName,
                             u.getProfilePictureUrl(),
                             u.getEmail(),
                             u.getPhoneNumber(),
-                            null   // Live location only available in single profile summary
+                            u.getRole() != null ? u.getRole().name() : "CLIENT",
+                            u.isActive(),
+                            null  // No live location in list summaries
                     );
                 })
                 .collect(Collectors.toList());
