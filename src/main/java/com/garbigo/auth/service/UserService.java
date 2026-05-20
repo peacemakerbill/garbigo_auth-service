@@ -1,6 +1,7 @@
 package com.garbigo.auth.service;
 
 import com.cloudinary.Cloudinary;
+import com.garbigo.auth.dto.ProfileUpdateDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
@@ -20,19 +21,17 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final Cloudinary cloudinary;
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper = new ModelMapper();
     private final AuthService authService;
 
-    public UserService(UserRepository userRepository, Cloudinary cloudinary, 
+    public UserService(UserRepository userRepository, Cloudinary cloudinary,
                        PasswordEncoder passwordEncoder, AuthService authService) {
         this.userRepository = userRepository;
-        this.cloudinary = cloudinary;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
     }
-    
+
     public UserDto getCurrentUserDto(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found"));
@@ -41,36 +40,27 @@ public class UserService {
     }
 
     // ====================== USER PROFILE ======================
+
+    /**
+     * Update user profile using JSON (text fields only)
+     */
+    public UserDto updateProfile(ProfileUpdateDto dto) {
+        User user = getCurrentUser();
+        updateUserFields(user, dto);
+        userRepository.save(user);
+        return modelMapper.map(user, UserDto.class);
+    }
+
+    /**
+     * Update profile with multipart request (mainly for profile picture)
+     */
     public UserDto updateProfile(ProfileUpdateRequest request) {
         User user = getCurrentUser();
 
-        // Email update
-        if (request.getEmail() != null && !request.getEmail().trim().isEmpty() 
-                && !request.getEmail().equals(user.getEmail())) {
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-                throw new CustomException("Email already in use by another user");
-            }
-            user.setEmail(request.getEmail());
-        }
+        // Update text fields if provided
+        updateUserFields(user, request);
 
-        // Phone number update
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty() 
-                && !request.getPhoneNumber().equals(user.getPhoneNumber())) {
-            if (userRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent()) {
-                throw new CustomException("Phone number already in use by another user");
-            }
-            user.setPhoneNumber(request.getPhoneNumber());
-        }
-
-        // Other fields
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getMiddleName() != null) user.setMiddleName(request.getMiddleName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getHomeAddress() != null) user.setHomeAddress(request.getHomeAddress());
-        if (request.getWastePreferences() != null) user.setWastePreferences(request.getWastePreferences());
-        if (request.getCollectionSchedule() != null) user.setCollectionSchedule(request.getCollectionSchedule());
-
-        // ==================== PROFILE PICTURE UPLOAD ====================
+        // Handle profile picture upload
         if (request.getProfilePicture() != null && !request.getProfilePicture().isEmpty()) {
             try {
                 String contentType = request.getProfilePicture().getContentType();
@@ -89,7 +79,68 @@ public class UserService {
         return modelMapper.map(user, UserDto.class);
     }
 
+    // ====================== HELPER METHODS ======================
+
+    private void updateUserFields(User user, Object request) {
+        if (request instanceof ProfileUpdateDto dto) {
+            updateFromDto(user, dto);
+        } else if (request instanceof ProfileUpdateRequest req) {
+            updateFromRequest(user, req);
+        }
+    }
+
+    private void updateFromDto(User user, ProfileUpdateDto dto) {
+        if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()
+                && !dto.getEmail().equals(user.getEmail())) {
+            if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+                throw new CustomException("Email already in use by another user");
+            }
+            user.setEmail(dto.getEmail());
+        }
+
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().trim().isEmpty()
+                && !dto.getPhoneNumber().equals(user.getPhoneNumber())) {
+            if (userRepository.findByPhoneNumber(dto.getPhoneNumber()).isPresent()) {
+                throw new CustomException("Phone number already in use by another user");
+            }
+            user.setPhoneNumber(dto.getPhoneNumber());
+        }
+
+        if (dto.getFirstName() != null) user.setFirstName(dto.getFirstName());
+        if (dto.getMiddleName() != null) user.setMiddleName(dto.getMiddleName());
+        if (dto.getLastName() != null) user.setLastName(dto.getLastName());
+        if (dto.getHomeAddress() != null) user.setHomeAddress(dto.getHomeAddress());
+        if (dto.getWastePreferences() != null) user.setWastePreferences(dto.getWastePreferences());
+        if (dto.getCollectionSchedule() != null) user.setCollectionSchedule(dto.getCollectionSchedule());
+    }
+
+    private void updateFromRequest(User user, ProfileUpdateRequest req) {
+        if (req.getEmail() != null && !req.getEmail().trim().isEmpty()
+                && !req.getEmail().equals(user.getEmail())) {
+            if (userRepository.findByEmail(req.getEmail()).isPresent()) {
+                throw new CustomException("Email already in use by another user");
+            }
+            user.setEmail(req.getEmail());
+        }
+
+        if (req.getPhoneNumber() != null && !req.getPhoneNumber().trim().isEmpty()
+                && !req.getPhoneNumber().equals(user.getPhoneNumber())) {
+            if (userRepository.findByPhoneNumber(req.getPhoneNumber()).isPresent()) {
+                throw new CustomException("Phone number already in use by another user");
+            }
+            user.setPhoneNumber(req.getPhoneNumber());
+        }
+
+        if (req.getFirstName() != null) user.setFirstName(req.getFirstName());
+        if (req.getMiddleName() != null) user.setMiddleName(req.getMiddleName());
+        if (req.getLastName() != null) user.setLastName(req.getLastName());
+        if (req.getHomeAddress() != null) user.setHomeAddress(req.getHomeAddress());
+        if (req.getWastePreferences() != null) user.setWastePreferences(req.getWastePreferences());
+        if (req.getCollectionSchedule() != null) user.setCollectionSchedule(req.getCollectionSchedule());
+    }
+
     // ====================== ADMIN OPERATIONS ======================
+
     public UserDto createUser(User user) {
         if (user.getEmail() != null && userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new CustomException("Email already in use");
@@ -244,6 +295,7 @@ public class UserService {
     }
 
     // ====================== HELPER METHODS ======================
+
     private void preventSelfModification(String targetId, String action) {
         User current = getCurrentUser();
         if (current.getId().equals(targetId)) {

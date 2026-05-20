@@ -16,6 +16,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.multipart.MultipartResolver;
+import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 
 import java.util.List;
 
@@ -40,6 +42,14 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * FIX FOR MULTIPART UPLOADS
+     */
+    @Bean
+    public MultipartResolver multipartResolver() {
+        return new StandardServletMultipartResolver();
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -60,14 +70,14 @@ public class SecurityConfig {
                     "/auth/social/facebook",
                     "/auth/social/apple"
                 ).permitAll()
-                
-                // Allow clients to search collectors
+
+                // Collectors search (for clients)
                 .requestMatchers(HttpMethod.GET, "/users/collectors", "/users/collectors/**").authenticated()
 
-                // Allow preflight requests (CORS)
+                // Allow preflight CORS requests
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Public actuator & docs
+                // Public monitoring & docs
                 .requestMatchers(
                     "/actuator/**",
                     "/swagger-ui/**",
@@ -75,17 +85,18 @@ public class SecurityConfig {
                     "/favicon.ico"
                 ).permitAll()
 
-                // ====================== PROTECTED ENDPOINTS ======================
-                // User profile update
-                .requestMatchers("/users/profile").authenticated()
+                // ====================== USER PROFILE ENDPOINTS ======================
+                .requestMatchers(HttpMethod.GET, "/users/profile").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/users/profile").authenticated()           // JSON Profile Update
+                .requestMatchers(HttpMethod.PUT, "/users/profile/picture").authenticated() // Profile Picture Upload
 
-                // Live location endpoints (GET current location)
+                // Live Location
                 .requestMatchers("/users/live-location/**").authenticated()
 
-                // ====================== ADMIN ONLY ======================
+                // ====================== ADMIN ONLY (MUST BE AFTER USER RULES) ======================
                 .requestMatchers("/users/**").hasRole("ADMIN")
 
-                // All other requests require authentication
+                // Catch-all
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -97,8 +108,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*")); 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

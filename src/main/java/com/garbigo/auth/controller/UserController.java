@@ -1,6 +1,7 @@
 package com.garbigo.auth.controller;
 
 import com.garbigo.auth.dto.LiveLocationResponseDto;
+import com.garbigo.auth.dto.ProfileUpdateDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
@@ -42,8 +43,9 @@ public class UserController {
         this.userService = userService;
         this.liveLocationRedisService = liveLocationRedisService;
     }
-    
+
     // ====================== CURRENT USER PROFILE ======================
+
     @GetMapping("/profile")
     public ResponseEntity<UserDto> getCurrentProfile(@AuthenticationPrincipal User currentUser) {
         if (currentUser == null) {
@@ -54,11 +56,24 @@ public class UserController {
         return ResponseEntity.ok(userDto);
     }
 
-    // Update current user profile - Supports text fields + image upload
-    @PutMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UserDto> updateProfile(
-            @ModelAttribute ProfileUpdateRequest request) {
-        
+    // Update profile data using JSON (text fields only)
+    @PutMapping("/profile")
+    public ResponseEntity<UserDto> updateProfile(@RequestBody ProfileUpdateDto request) {
+        return ResponseEntity.ok(userService.updateProfile(request));
+    }
+
+    // Update profile picture only using multipart
+    @PutMapping(value = "/profile/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserDto> updateProfilePicture(
+            @RequestPart("profilePicture") MultipartFile profilePicture) {
+
+        if (profilePicture == null || profilePicture.isEmpty()) {
+            throw new CustomException("Profile picture file is required");
+        }
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest();
+        request.setProfilePicture(profilePicture);
+
         return ResponseEntity.ok(userService.updateProfile(request));
     }
 
@@ -157,7 +172,6 @@ public class UserController {
         
         List<UserDto> allUsers = userService.getAllUsers(search);
         
-        // Filter only collectors
         List<UserDto> collectors = allUsers.stream()
                 .filter(user -> user.getRole() == Role.COLLECTOR)
                 .collect(Collectors.toList());
@@ -165,7 +179,6 @@ public class UserController {
         return ResponseEntity.ok(collectors);
     }
 
-    // Helper method
     private String buildFullName(User user) {
         StringBuilder sb = new StringBuilder();
         if (user.getFirstName() != null) sb.append(user.getFirstName().trim());
