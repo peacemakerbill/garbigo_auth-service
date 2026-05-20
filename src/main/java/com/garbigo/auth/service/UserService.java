@@ -70,13 +70,18 @@ public class UserService {
         if (request.getWastePreferences() != null) user.setWastePreferences(request.getWastePreferences());
         if (request.getCollectionSchedule() != null) user.setCollectionSchedule(request.getCollectionSchedule());
 
-        // Profile picture
+        // ==================== PROFILE PICTURE UPLOAD ====================
         if (request.getProfilePicture() != null && !request.getProfilePicture().isEmpty()) {
             try {
+                String contentType = request.getProfilePicture().getContentType();
+                if (contentType != null && !contentType.startsWith("image/")) {
+                    throw new CustomException("Only image files are allowed for profile picture");
+                }
+
                 String url = authService.uploadProfilePicture(request.getProfilePicture());
                 user.setProfilePictureUrl(url);
             } catch (Exception e) {
-                throw new CustomException("Failed to upload profile picture");
+                throw new CustomException("Failed to upload profile picture: " + e.getMessage());
             }
         }
 

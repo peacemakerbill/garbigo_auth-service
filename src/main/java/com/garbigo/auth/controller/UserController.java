@@ -12,10 +12,12 @@ import com.garbigo.auth.repository.UserRepository;
 import com.garbigo.auth.service.LiveLocationRedisService;
 import com.garbigo.auth.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -41,7 +43,7 @@ public class UserController {
         this.liveLocationRedisService = liveLocationRedisService;
     }
     
- // ====================== CURRENT USER PROFILE ======================
+    // ====================== CURRENT USER PROFILE ======================
     @GetMapping("/profile")
     public ResponseEntity<UserDto> getCurrentProfile(@AuthenticationPrincipal User currentUser) {
         if (currentUser == null) {
@@ -52,9 +54,11 @@ public class UserController {
         return ResponseEntity.ok(userDto);
     }
 
-    // Update current user profile
-    @PutMapping("/profile")
-    public ResponseEntity<UserDto> updateProfile(@RequestBody ProfileUpdateRequest request) {
+    // Update current user profile - Supports text fields + image upload
+    @PutMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserDto> updateProfile(
+            @ModelAttribute ProfileUpdateRequest request) {
+        
         return ResponseEntity.ok(userService.updateProfile(request));
     }
 
