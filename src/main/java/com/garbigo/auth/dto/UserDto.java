@@ -15,6 +15,8 @@ public class UserDto {
     private String homeAddress;
     private String profilePictureUrl;
     private Role role;
+    private String wastePreferences;
+    private String collectionSchedule;
     private boolean verified;
     private boolean active;
     private boolean archived;
