@@ -25,11 +25,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-    private final UserDetailsServiceImpl userDetailsService;
-
     public SecurityConfig(JwtFilter jwtFilter, UserDetailsServiceImpl userDetailsService) {
         this.jwtFilter = jwtFilter;
-        this.userDetailsService = userDetailsService;
     }
 
     @Bean
