@@ -10,12 +10,11 @@ import java.time.Instant;
 import java.util.Optional;
 
 /**
- * MongoConfig enables:
- *   - @CreatedDate / @LastModifiedDate auto-population on all MongoDB documents
- *   - Repository scanning scoped to the correct base package
+ * Central MongoDB configuration.
  *
- * Without @EnableMongoAuditing, @CreatedDate on ProfileView.viewedAt will
- * never be set automatically and will always be null.
+ * Keeping auditing here (rather than on the main application class) makes it
+ * easy to add further Mongo-specific settings (converters, connection options,
+ * transaction managers, etc.) in one dedicated place as the project grows.
  */
 @Configuration
 @EnableMongoAuditing(dateTimeProviderRef = "auditingDateTimeProvider")
@@ -25,8 +24,8 @@ public class MongoConfig {
     /**
      * Provides Instant-compatible timestamps for @CreatedDate / @LastModifiedDate.
      *
-     * Spring Data MongoDB's default auditing uses Date; this bean tells it to
-     * use java.time.Instant instead, which matches the field type on ProfileView.
+     * Spring Data MongoDB defaults to java.util.Date for auditing; this bean
+     * overrides that so fields declared as java.time.Instant are populated correctly.
      */
     @Bean
     public DateTimeProvider auditingDateTimeProvider() {
