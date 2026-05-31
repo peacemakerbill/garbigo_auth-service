@@ -21,7 +21,12 @@ public class ProfileViewController {
     }
 
     /**
-     * Record a profile view
+     * Record a profile view.
+     * - Authenticated: viewer ID is extracted from the security context.
+     * - Unauthenticated: recorded as anonymous (viewerId = null).
+     *
+     * FIX: Strengthened path variable validation. The "who-viewed-me" guard is kept
+     * as a safety net in case routing ever fails to distinguish the paths.
      */
     @PostMapping("/{viewedUserId}")
     public ResponseEntity<String> recordView(
@@ -30,26 +35,33 @@ public class ProfileViewController {
             @RequestHeader(value = "X-Forwarded-For", required = false) String forwardedFor,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
 
-        if (viewedUserId == null || viewedUserId.trim().isEmpty() || "who-viewed-me".equals(viewedUserId)) {
-            return ResponseEntity.badRequest().body("Invalid viewed user ID");
+        String trimmedId = viewedUserId != null ? viewedUserId.trim() : "";
+        if (trimmedId.isEmpty() || "who-viewed-me".equals(trimmedId)) {
+            return ResponseEntity.badRequest().body("Invalid profile ID");
         }
 
         String viewerId = currentUser != null ? currentUser.getId() : null;
-        profileViewService.recordProfileView(viewedUserId, viewerId, forwardedFor, userAgent);
+        profileViewService.recordProfileView(trimmedId, viewerId, forwardedFor, userAgent);
 
         return ResponseEntity.ok("Profile view recorded successfully");
     }
 
     /**
-     * Get profile view statistics
+     * Get profile view statistics for a given user.
+     * NOTE: This endpoint is currently public. Consider adding @PreAuthorize
+     * if stats should only be visible to the profile owner.
      */
     @GetMapping("/stats/{userId}")
     public ResponseEntity<ProfileViewStatsDto> getStats(@PathVariable String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
         return ResponseEntity.ok(profileViewService.getProfileViewStats(userId));
     }
 
     /**
-     * Who Viewed Me - Full list of users who viewed your profile
+     * Who Viewed Me — returns the list of users who have viewed the authenticated user's profile.
+     * Requires authentication.
      */
     @GetMapping("/who-viewed-me")
     public ResponseEntity<List<UserSummaryDto>> getWhoViewedMe(@AuthenticationPrincipal User currentUser) {
