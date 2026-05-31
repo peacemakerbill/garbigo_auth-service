@@ -21,7 +21,7 @@ public class ProfileViewController {
     }
 
     /**
-     * Record profile view (call this when someone visits a profile)
+     * Record a profile view
      */
     @PostMapping("/{viewedUserId}")
     public ResponseEntity<String> recordView(
@@ -30,8 +30,13 @@ public class ProfileViewController {
             @RequestHeader(value = "X-Forwarded-For", required = false) String forwardedFor,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
 
+        if (viewedUserId == null || viewedUserId.trim().isEmpty() || "who-viewed-me".equals(viewedUserId)) {
+            return ResponseEntity.badRequest().body("Invalid viewed user ID");
+        }
+
         String viewerId = currentUser != null ? currentUser.getId() : null;
         profileViewService.recordProfileView(viewedUserId, viewerId, forwardedFor, userAgent);
+
         return ResponseEntity.ok("Profile view recorded successfully");
     }
 
@@ -44,7 +49,7 @@ public class ProfileViewController {
     }
 
     /**
-     * Who Viewed Me - Full user details
+     * Who Viewed Me - Full list of users who viewed your profile
      */
     @GetMapping("/who-viewed-me")
     public ResponseEntity<List<UserSummaryDto>> getWhoViewedMe(@AuthenticationPrincipal User currentUser) {

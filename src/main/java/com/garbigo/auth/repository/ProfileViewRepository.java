@@ -19,4 +19,8 @@ public interface ProfileViewRepository extends MongoRepository<ProfileView, Stri
     List<ProfileView> findTop50ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
 
     List<ProfileView> findTop10ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
+
+    // For duplicate prevention (same viewer within last hour)
+    List<ProfileView> findByViewedUserIdAndViewerIdAndViewedAtAfter(
+            String viewedUserId, String viewerId, Instant after);
 }

@@ -28,11 +28,21 @@ public class ProfileViewService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Record profile view with smart duplicate prevention
+     */
     public void recordProfileView(String viewedUserId, String viewerId, String ip, String userAgent) {
-        if (viewedUserId == null) return;
+        if (viewedUserId == null || viewedUserId.trim().isEmpty()) {
+            return;
+        }
 
-        // Prevent self-view counting
+        // Prevent self-view
         if (viewerId != null && viewerId.equals(viewedUserId)) {
+            return;
+        }
+
+        // Prevent duplicate views from same user within last 60 minutes
+        if (viewerId != null && hasRecentView(viewedUserId, viewerId)) {
             return;
         }
 
@@ -47,6 +57,16 @@ public class ProfileViewService {
         profileViewRepository.save(view);
     }
 
+    /**
+     * Check if the same user viewed this profile recently
+     */
+    private boolean hasRecentView(String viewedUserId, String viewerId) {
+        Instant oneHourAgo = Instant.now().minus(60, ChronoUnit.MINUTES);
+        List<ProfileView> recentViews = profileViewRepository
+                .findByViewedUserIdAndViewerIdAndViewedAtAfter(viewedUserId, viewerId, oneHourAgo);
+        return !recentViews.isEmpty();
+    }
+
     public ProfileViewStatsDto getProfileViewStats(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found"));
@@ -57,7 +77,7 @@ public class ProfileViewService {
         List<ProfileView> recentViews = profileViewRepository.findTop50ByViewedUserIdOrderByViewedAtDesc(userId);
 
         Set<String> uniqueViewerIds = recentViews.stream()
-                .filter(v -> v.getViewerId() != null)
+                .filter(v -> v.getViewerId() != null && !v.getViewerId().equals(userId))
                 .map(ProfileView::getViewerId)
                 .collect(Collectors.toSet());
 
@@ -75,7 +95,7 @@ public class ProfileViewService {
     }
 
     /**
-     * Who Viewed Me - Returns full user summary data
+     * Who Viewed Me - Returns full user details
      */
     public List<UserSummaryDto> getWhoViewedMe(String userId) {
         User user = userRepository.findById(userId)
@@ -84,7 +104,7 @@ public class ProfileViewService {
         List<ProfileView> views = profileViewRepository.findTop50ByViewedUserIdOrderByViewedAtDesc(userId);
 
         List<String> viewerIds = views.stream()
-                .filter(v -> v.getViewerId() != null)
+                .filter(v -> v.getViewerId() != null && !v.getViewerId().equals(userId))
                 .map(ProfileView::getViewerId)
                 .distinct()
                 .collect(Collectors.toList());
