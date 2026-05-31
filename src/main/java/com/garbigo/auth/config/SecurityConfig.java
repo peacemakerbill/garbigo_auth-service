@@ -57,6 +57,7 @@ public class SecurityConfig {
                 // === PUBLIC ENDPOINTS ===
                 .requestMatchers(
                     "/",
+                    "/health",
                     "/auth/signup",
                     "/auth/signin",
                     "/auth/verify",
