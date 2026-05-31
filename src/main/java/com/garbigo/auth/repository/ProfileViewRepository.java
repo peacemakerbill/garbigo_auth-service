@@ -16,7 +16,7 @@ public interface ProfileViewRepository extends MongoRepository<ProfileView, Stri
     @Query("{ 'viewedUserId': ?0, 'viewedAt': { $gte: ?1 } }")
     long countViewsSince(String viewedUserId, Instant since);
 
-    List<ProfileView> findTop10ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
+    List<ProfileView> findTop50ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
 
-    void deleteByViewedUserId(String viewedUserId);
+    List<ProfileView> findTop10ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
 }
