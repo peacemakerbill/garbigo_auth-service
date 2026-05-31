@@ -51,10 +51,8 @@ public class ProfileViewService {
         ProfileView view = new ProfileView();
         view.setViewedUserId(viewedUserId);
         view.setViewerId(viewerId);
-        // Take only the first IP in case of proxy chain (e.g. "1.2.3.4, 5.6.7.8")
         view.setViewerIp(ip != null ? ip.split(",")[0].trim() : null);
         view.setUserAgent(userAgent);
-        // Setting it manually overrides auditing and can cause inconsistencies.
         view.setAnonymous(viewerId == null);
 
         profileViewRepository.save(view);
@@ -74,21 +72,16 @@ public class ProfileViewService {
      * Returns view statistics for a given user's profile.
      */
     public ProfileViewStatsDto getProfileViewStats(String userId) {
-        // Validate user exists
         if (!userRepository.existsById(userId)) {
             throw new CustomException("User not found");
         }
 
         long totalViews = profileViewRepository.countByViewedUserId(userId);
-        long todayViews = profileViewRepository.countViewsSince(userId, Instant.now().minus(1, ChronoUnit.DAYS));
+        long todayViews = profileViewRepository.countByViewedUserIdAndViewedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS));
+        long uniqueViewers = profileViewRepository.countByViewedUserIdAndViewerIdNotNull(userId);
 
-        // uniqueViewers counted from DB — not approximated from a top-50 slice
-        long uniqueViewers = profileViewRepository.countNonAnonymousViewsByViewedUserId(userId);
-
-        // Load top 10 recent views for the preview list
         List<ProfileView> recentViews = profileViewRepository.findTop10ByViewedUserIdOrderByViewedAtDesc(userId);
 
-        //Batch-fetch all viewer users in one query to avoid N+1 DB calls
         List<String> viewerIds = recentViews.stream()
                 .filter(v -> !v.isAnonymous() && v.getViewerId() != null)
                 .map(ProfileView::getViewerId)
@@ -108,17 +101,15 @@ public class ProfileViewService {
     }
 
     /**
-     * Returns full user summaries for everyone who viewed the given user's profile.
+     * Who Viewed Me — returns full user details of everyone who viewed the current user's profile.
      */
     public List<UserSummaryDto> getWhoViewedMe(String userId) {
-        // Validate user exists
         if (!userRepository.existsById(userId)) {
             throw new CustomException("User not found");
         }
 
         List<ProfileView> views = profileViewRepository.findTop50ByViewedUserIdOrderByViewedAtDesc(userId);
 
-        // Collect distinct authenticated viewer IDs, excluding self
         List<String> viewerIds = views.stream()
                 .filter(v -> v.getViewerId() != null && !v.getViewerId().equals(userId))
                 .map(ProfileView::getViewerId)
@@ -133,32 +124,62 @@ public class ProfileViewService {
                 .collect(Collectors.toMap(User::getId, u -> u));
 
         return viewerIds.stream()
-                .map(vid -> {
-                    User viewer = userMap.get(vid);
-                    if (viewer == null) return null; // viewer account deleted
-
-                    return new UserSummaryDto(
-                            viewer.getId(),
-                            viewer.getUsername(),
-                            viewer.getFirstName(),
-                            viewer.getMiddleName(),
-                            viewer.getLastName(),
-                            buildFullName(viewer),
-                            viewer.getProfilePictureUrl(),
-                            viewer.getEmail(),
-                            viewer.getPhoneNumber(),
-                            viewer.getRole() != null ? viewer.getRole().name() : "CLIENT",
-                            viewer.isActive(),
-                            null
-                    );
-                })
+                .map(vid -> buildUserSummary(userMap.get(vid)))
                 .filter(dto -> dto != null)
                 .collect(Collectors.toList());
     }
 
     /**
-     * when first name is absent, and each part is only appended if non-null and non-blank.
+     * Who I Viewed — returns full user details of profiles the current user has visited.
      */
+    public List<UserSummaryDto> getWhoIViewed(String userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new CustomException("User not found");
+        }
+
+        List<ProfileView> views = profileViewRepository.findTop50ByViewerIdOrderByViewedAtDesc(userId);
+
+        // Distinct profiles viewed, excluding self (edge case)
+        List<String> viewedUserIds = views.stream()
+                .filter(v -> v.getViewedUserId() != null && !v.getViewedUserId().equals(userId))
+                .map(ProfileView::getViewedUserId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (viewedUserIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, User> userMap = userRepository.findAllById(viewedUserIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        return viewedUserIds.stream()
+                .map(vid -> buildUserSummary(userMap.get(vid)))
+                .filter(dto -> dto != null)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Builds a UserSummaryDto from a User — returns null if user is deleted/not found.
+     */
+    private UserSummaryDto buildUserSummary(User user) {
+        if (user == null) return null;
+        return new UserSummaryDto(
+                user.getId(),
+                user.getUsername(),
+                user.getFirstName(),
+                user.getMiddleName(),
+                user.getLastName(),
+                buildFullName(user),
+                user.getProfilePictureUrl(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getRole() != null ? user.getRole().name() : "CLIENT",
+                user.isActive(),
+                null
+        );
+    }
+
     private String buildFullName(User user) {
         StringBuilder sb = new StringBuilder();
         appendIfPresent(sb, user.getFirstName());

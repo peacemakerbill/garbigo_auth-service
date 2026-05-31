@@ -2,35 +2,31 @@ package com.garbigo.auth.repository;
 
 import com.garbigo.auth.model.ProfileView;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 
 import java.time.Instant;
 import java.util.List;
 
 public interface ProfileViewRepository extends MongoRepository<ProfileView, String> {
 
-    // Used for total view count
+    // Total view count for a profile
     long countByViewedUserId(String viewedUserId);
 
-    // Used for today's / recent view count
-    @Query("{ 'viewedUserId': ?0, 'viewedAt': { $gte: ?1 } }")
-    long countViewsSince(String viewedUserId, Instant since);
+    // Views in the last 24 hours (today's views)
+    long countByViewedUserIdAndViewedAtAfter(String viewedUserId, Instant since);
 
-    // FIX: Removed unbounded findByViewedUserIdOrderByViewedAtDesc — never load all records.
-    // Use the bounded variants below instead.
+    // Count of distinct authenticated viewers
+    long countByViewedUserIdAndViewerIdNotNull(String viewedUserId);
 
-    // Used for "who viewed me" list and stats recent viewers
+    // Recent 50 viewers — used for "who viewed me"
     List<ProfileView> findTop50ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
 
-    // Used for stats recent viewers preview (top 10 only)
+    // Recent 10 viewers — used for stats preview
     List<ProfileView> findTop10ByViewedUserIdOrderByViewedAtDesc(String viewedUserId);
 
-    // Duplicate prevention: same viewer, same profile, within time window
-    // Backed by compound index: ('viewedUserId', 'viewerId', 'viewedAt')
+    // Recent 50 profiles this user has viewed — used for "who I viewed"
+    List<ProfileView> findTop50ByViewerIdOrderByViewedAtDesc(String viewerId);
+
+    // Duplicate prevention check — backed by compound index (viewedUserId, viewerId, viewedAt)
     List<ProfileView> findByViewedUserIdAndViewerIdAndViewedAtAfter(
             String viewedUserId, String viewerId, Instant after);
-
-    // Count distinct viewers (approximation — use aggregation pipeline for exact distinct count at scale)
-    @Query(value = "{ 'viewedUserId': ?0, 'viewerId': { $ne: null } }", count = true)
-    long countNonAnonymousViewsByViewedUserId(String viewedUserId);
 }
