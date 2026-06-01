@@ -55,6 +55,17 @@ public class ProfileViewController {
     }
 
     /**
+     * Get profile view statistics for the authenticated user.
+     */
+    @GetMapping("/my-stats")
+    public ResponseEntity<ProfileViewStatsDto> getMyStats(@AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(profileViewService.getProfileViewStats(currentUser.getId()));
+    }
+
+    /**
      * Who Viewed Me — list of users who visited the authenticated user's profile.
      * Requires authentication.
      */
