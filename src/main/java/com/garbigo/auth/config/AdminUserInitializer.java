@@ -28,7 +28,7 @@ public class AdminUserInitializer implements CommandLineRunner {
         
         User admin = new User();
         admin.setEmail(adminEmail);
-        admin.setUsername("admin");
+        admin.setDisplayUsername("admin");
         admin.setFirstName("Admin");
         admin.setLastName("User");
         admin.setPassword(passwordEncoder.encode("garbiadmin!"));

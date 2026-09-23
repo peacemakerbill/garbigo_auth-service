@@ -8,5 +8,15 @@
     "name": "rabbitmq.queue.user-created",
     "type": "java.lang.String",
     "description": "A description for 'rabbitmq.queue.user-created'"
+  },
+  {
+    "name": "github.client-id",
+    "type": "java.lang.String",
+    "description": "OAuth Client ID for the GitHub OAuth App used for GitHub sign up / sign in."
+  },
+  {
+    "name": "github.client-secret",
+    "type": "java.lang.String",
+    "description": "OAuth Client Secret for the GitHub OAuth App used for GitHub sign up / sign in."
   }
 ]}

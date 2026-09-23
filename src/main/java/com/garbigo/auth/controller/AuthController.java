@@ -63,18 +63,27 @@ public class AuthController {
         return ResponseEntity.ok("Password changed successfully");
     }
 
-//    @PostMapping("/social/google")
-//    public ResponseEntity<AuthResponse> googleLogin(@RequestBody SocialLoginRequest request) {
-//        return ResponseEntity.ok(socialAuthService.googleLogin(request));
-//    }
-//
-//    @PostMapping("/social/facebook")
-//    public ResponseEntity<AuthResponse> facebookLogin(@RequestBody SocialLoginRequest request) {
-//        return ResponseEntity.ok(socialAuthService.facebookLogin(request));
-//    }
-//
-//    @PostMapping("/social/apple")
-//    public ResponseEntity<AuthResponse> appleLogin(@RequestBody SocialLoginRequest request) {
-//        return ResponseEntity.ok(socialAuthService.appleLogin(request));
-//    }
+    // ====================== SOCIAL SIGN UP / SIGN IN ======================
+    // Each endpoint is create-or-login in one step: an unrecognized email creates a new
+    // (pre-verified) account, a recognized one just logs in. That's why there's no separate
+    // "social signup" endpoint - sign up and sign in are the same request for social auth.
+
+    // request.token = the Google ID token from Google Sign-In on the client.
+    @PostMapping("/social/google")
+    public ResponseEntity<AuthResponse> googleLogin(@RequestBody SocialLoginRequest request) {
+        return ResponseEntity.ok(socialAuthService.googleLogin(request));
+    }
+
+    // request.token = the Facebook access token from the Facebook SDK on the client.
+    @PostMapping("/social/facebook")
+    public ResponseEntity<AuthResponse> facebookLogin(@RequestBody SocialLoginRequest request) {
+        return ResponseEntity.ok(socialAuthService.facebookLogin(request));
+    }
+
+    // request.token = the OAuth "code" GitHub redirects back with after the user approves
+    // access - NOT an access token itself. See SocialAuthService.githubLogin for why.
+    @PostMapping("/social/github")
+    public ResponseEntity<AuthResponse> githubLogin(@RequestBody SocialLoginRequest request) {
+        return ResponseEntity.ok(socialAuthService.githubLogin(request));
+    }
 }

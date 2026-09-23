@@ -66,7 +66,7 @@ public class SecurityConfig {
                     "/auth/resend-verification",
                     "/auth/social/google",
                     "/auth/social/facebook",
-                    "/auth/social/apple"
+                    "/auth/social/github"
                 ).permitAll()
 
                 // Collectors search (for clients)

@@ -42,14 +42,14 @@ public class AuthService {
 	private final Cloudinary cloudinary;
 	private final RabbitTemplate rabbitTemplate;
 	private final RateLimiter rateLimiter;
-	private final ModelMapper modelMapper = new ModelMapper();
+	private final ModelMapper modelMapper;
 
 	@Value("${rabbitmq.queue.user-created}")
 	private String userCreatedQueue;
 
 	public AuthService(UserRepository userRepository, TokenRepository tokenRepository, PasswordEncoder passwordEncoder,
 			AuthenticationManager authenticationManager, JwtUtil jwtUtil, EmailService emailService,
-			Cloudinary cloudinary, RabbitTemplate rabbitTemplate, RateLimiter rateLimiter) {
+			Cloudinary cloudinary, RabbitTemplate rabbitTemplate, RateLimiter rateLimiter, ModelMapper modelMapper) {
 		this.userRepository = userRepository;
 		this.tokenRepository = tokenRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -59,6 +59,7 @@ public class AuthService {
 		this.cloudinary = cloudinary;
 		this.rabbitTemplate = rabbitTemplate;
 		this.rateLimiter = rateLimiter;
+		this.modelMapper = modelMapper;
 	}
 
 	@Transactional
@@ -78,7 +79,7 @@ public class AuthService {
 			}
 
 			User user = new User();
-			user.setUsername(request.getUsername());
+			user.setDisplayUsername(request.getUsername());
 			user.setFirstName(request.getFirstName());
 			user.setMiddleName(request.getMiddleName());
 			user.setLastName(request.getLastName());

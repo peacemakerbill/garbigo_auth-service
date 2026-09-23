@@ -1,11 +1,13 @@
 package com.garbigo.auth.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,10 +20,25 @@ import java.util.List;
 @Document(collection = "users")
 public class User implements UserDetails {
 
+    // UserDetails extends Serializable; without this, IDEs flag "class does not
+    // declare a serialVersionUID". Spring Security never actually serializes this
+    // object here (sessions are STATELESS), so the value itself doesn't matter -
+    // it just needs to exist.
+    private static final long serialVersionUID = 1L;
+
     @Id
     private String id;
 
-    private String username;
+    // Named displayUsername (not "username") so Lombok can actually generate a
+    // getter/setter for it. getUsername() below is the UserDetails contract method
+    // and intentionally returns the email instead - if this field were also called
+    // "username", Lombok would silently skip generating its accessor because
+    // getUsername() already exists, leaving the field impossible to read back out.
+    // @Field/@JsonProperty keep the Mongo document key and the JSON wire format as
+    // "username" - only the Java identifier changed, not stored data or the API shape.
+    @Field("username")
+    @JsonProperty("username")
+    private String displayUsername;
 
     private String firstName;
     private String middleName;

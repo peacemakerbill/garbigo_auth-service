@@ -12,27 +12,20 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
 
-import java.math.BigInteger;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.spec.RSAPublicKeySpec;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class SocialAuthService {
@@ -43,11 +36,15 @@ public class SocialAuthService {
     private static final ParameterizedTypeReference<Map<String, Object>> JSON_OBJECT =
             new ParameterizedTypeReference<>() {};
 
+    // Same idea, for endpoints that return a JSON array of objects (e.g. GitHub's
+    // /user/emails), so we don't fall back to a raw List either.
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> JSON_ARRAY =
+            new ParameterizedTypeReference<>() {};
+
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final RestTemplate restTemplate = new RestTemplate();
-    private final JsonMapper jsonMapper = JsonMapper.builder().build();
-    private final ModelMapper modelMapper = new ModelMapper();
+    private final ModelMapper modelMapper;
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -58,12 +55,16 @@ public class SocialAuthService {
     @Value("${facebook.app-secret}")
     private String facebookAppSecret;
 
-    @Value("${apple.client-id}")
-    private String appleClientId;
+    @Value("${github.client-id}")
+    private String githubClientId;
 
-    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil) {
+    @Value("${github.client-secret}")
+    private String githubClientSecret;
+
+    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil, ModelMapper modelMapper) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.modelMapper = modelMapper;
     }
 
     public AuthResponse googleLogin(SocialLoginRequest request) {
@@ -133,64 +134,104 @@ public class SocialAuthService {
         }
     }
 
-    public AuthResponse appleLogin(SocialLoginRequest request) {
+    /**
+     * GitHub sign up / sign in.
+     * <p>
+     * Unlike Google/Facebook, GitHub doesn't hand a mobile/web client a ready-made ID or
+     * access token. The client instead drives the standard OAuth "web application flow": it
+     * opens {@code https://github.com/login/oauth/authorize?client_id=...} in a
+     * browser/webview, the user approves, and GitHub redirects back with a short-lived,
+     * single-use {@code code}. That {@code code} is what the client sends here as
+     * {@link SocialLoginRequest#getToken()} - this method does the server-side half of the
+     * exchange (code -> access token -> profile), since the client secret must never be
+     * shipped to the client.
+     */
+    public AuthResponse githubLogin(SocialLoginRequest request) {
         try {
-            String jwksUrl = "https://appleid.apple.com/auth/keys";
-            ResponseEntity<Map<String, Object>> jwksResponse =
-                    restTemplate.exchange(jwksUrl, HttpMethod.GET, null, JSON_OBJECT);
+            String accessToken = exchangeGithubCodeForToken(request.getToken());
 
-            // Same story as "data" above: "keys" is a nested JSON array of objects inside
-            // a Map<String, Object>, so extracting it is an inherently unchecked cast.
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> keys =
-                    (List<Map<String, Object>>) jwksResponse.getBody().get("keys");
+            HttpHeaders profileHeaders = new HttpHeaders();
+            profileHeaders.setBearerAuth(accessToken);
+            profileHeaders.set(HttpHeaders.ACCEPT, "application/vnd.github+json");
 
-            String[] parts = request.getToken().split("\\.");
-            String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]));
-            Map<String, String> header =
-                    jsonMapper.readValue(headerJson, new TypeReference<Map<String, String>>() {});
-            String kid = header.get("kid");
+            ResponseEntity<Map<String, Object>> profileResponse = restTemplate.exchange(
+                    "https://api.github.com/user", HttpMethod.GET,
+                    new HttpEntity<>(profileHeaders), JSON_OBJECT);
 
-            Map<String, Object> key = keys.stream()
-                    .filter(k -> kid.equals(k.get("kid")))
-                    .findFirst()
-                    .orElseThrow(() -> new CustomException("Apple public key not found"));
-
-            BigInteger modulus = new BigInteger(1,
-                    Base64.getUrlDecoder().decode((String) key.get("n")));
-            BigInteger exponent = new BigInteger(1,
-                    Base64.getUrlDecoder().decode((String) key.get("e")));
-
-            PublicKey publicKey = KeyFactory.getInstance("RSA")
-                    .generatePublic(new RSAPublicKeySpec(modulus, exponent));
-
-            Claims claims = Jwts.parser()
-                    .verifyWith(publicKey)
-                    .build()
-                    .parseSignedClaims(request.getToken())
-                    .getPayload();
-
-            // Claims.getAudience() already returns Set<String> - no cast needed (and
-            // casting a Set to a List, as the previous code did, was never actually valid).
-            Set<String> audience = claims.getAudience();
-            if (audience == null || !audience.contains(appleClientId)) {
-                throw new CustomException("Invalid Apple audience");
+            Map<String, Object> profile = profileResponse.getBody();
+            if (profile == null) {
+                throw new CustomException("Failed to fetch GitHub profile");
             }
 
-            String email = claims.get("email", String.class);
-            String sub = claims.getSubject();
+            String name = (String) profile.get("name");
+            String login = (String) profile.get("login");
+            String email = (String) profile.get("email");
 
-            String fallbackEmail = email != null ? email : "appleuser_" + sub;
-            String name = "Apple User";
+            // GitHub only includes "email" on /user when the user has made it public.
+            // Otherwise we fall back to /user/emails for their primary verified address.
+            if (email == null) {
+                email = fetchPrimaryGithubEmail(profileHeaders);
+            }
 
-            User user = findOrCreateSocialUser(fallbackEmail, name);
+            if (email == null) {
+                throw new CustomException("GitHub account has no verified email address available");
+            }
+
+            User user = findOrCreateSocialUser(email, name != null ? name : login);
             user.setVerified(true);
             userRepository.save(user);
 
             return buildAuthResponse(user);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
-            throw new CustomException("Apple login failed: " + e.getMessage());
+            throw new CustomException("GitHub login failed: " + e.getMessage());
         }
+    }
+
+    private String exchangeGithubCodeForToken(String code) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        Map<String, String> body = Map.of(
+                "client_id", githubClientId,
+                "client_secret", githubClientSecret,
+                "code", code
+        );
+
+        ResponseEntity<Map<String, Object>> tokenResponse = restTemplate.exchange(
+                "https://github.com/login/oauth/access_token", HttpMethod.POST,
+                new HttpEntity<>(body, headers), JSON_OBJECT);
+
+        Map<String, Object> tokenBody = tokenResponse.getBody();
+        String accessToken = tokenBody != null ? (String) tokenBody.get("access_token") : null;
+
+        if (accessToken == null) {
+            String error = tokenBody != null
+                    ? String.valueOf(tokenBody.getOrDefault("error_description", tokenBody.get("error")))
+                    : "empty response";
+            throw new CustomException("GitHub token exchange failed: " + error);
+        }
+
+        return accessToken;
+    }
+
+    private String fetchPrimaryGithubEmail(HttpHeaders headers) {
+        ResponseEntity<List<Map<String, Object>>> emailsResponse = restTemplate.exchange(
+                "https://api.github.com/user/emails", HttpMethod.GET,
+                new HttpEntity<>(headers), JSON_ARRAY);
+
+        List<Map<String, Object>> emails = emailsResponse.getBody();
+        if (emails == null) {
+            return null;
+        }
+
+        return emails.stream()
+                .filter(e -> Boolean.TRUE.equals(e.get("primary")) && Boolean.TRUE.equals(e.get("verified")))
+                .map(e -> (String) e.get("email"))
+                .findFirst()
+                .orElse(null);
     }
 
     private User findOrCreateSocialUser(String email, String name) {

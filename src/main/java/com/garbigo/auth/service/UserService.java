@@ -22,14 +22,15 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ModelMapper modelMapper = new ModelMapper();
+    private final ModelMapper modelMapper;
     private final AuthService authService;
 
     public UserService(UserRepository userRepository, Cloudinary cloudinary,
-                       PasswordEncoder passwordEncoder, AuthService authService) {
+                       PasswordEncoder passwordEncoder, AuthService authService, ModelMapper modelMapper) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
+        this.modelMapper = modelMapper;
     }
 
     public UserDto getCurrentUserDto(String userId) {

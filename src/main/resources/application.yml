@@ -64,5 +64,6 @@ facebook:
   app-id: your-facebook-app-id
   app-secret: your-facebook-app-secret
 
-apple:
-  client-id: your-apple-service-id
+github:
+  client-id: your-github-oauth-client-id
+  client-secret: your-github-oauth-client-secret

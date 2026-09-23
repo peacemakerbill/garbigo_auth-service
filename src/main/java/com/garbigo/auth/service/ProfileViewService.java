@@ -166,7 +166,7 @@ public class ProfileViewService {
         if (user == null) return null;
         return new UserSummaryDto(
                 user.getId(),
-                user.getUsername(),
+                user.getDisplayUsername(),
                 user.getFirstName(),
                 user.getMiddleName(),
                 user.getLastName(),

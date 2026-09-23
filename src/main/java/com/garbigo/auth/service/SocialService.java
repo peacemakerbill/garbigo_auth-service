@@ -72,7 +72,7 @@ public class SocialService {
 
         return new UserSummaryDto(
                 user.getId(),
-                user.getUsername(),
+                user.getDisplayUsername(),
                 user.getFirstName(),
                 user.getMiddleName(),
                 user.getLastName(),
@@ -308,7 +308,7 @@ public class SocialService {
                     String fullName = buildFullName(u);
                     return new UserSummaryDto(
                             u.getId(),
-                            u.getUsername(),
+                            u.getDisplayUsername(),
                             u.getFirstName(),
                             u.getMiddleName(),
                             u.getLastName(),
