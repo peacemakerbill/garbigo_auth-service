@@ -12,7 +12,7 @@ public class RabbitMQConfig {
     private String userCreatedQueue;
 
     @Bean
-    public Queue userCreatedQueue() {
+    Queue userCreatedQueue() {
         return new Queue(userCreatedQueue, true);
     }
 }

@@ -28,7 +28,7 @@ public class MongoConfig {
      * overrides that so fields declared as java.time.Instant are populated correctly.
      */
     @Bean
-    public DateTimeProvider auditingDateTimeProvider() {
+    DateTimeProvider auditingDateTimeProvider() {
         return () -> Optional.of(Instant.now());
     }
 }

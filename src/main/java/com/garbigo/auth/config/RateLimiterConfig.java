@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.concurrent.TimeUnit;
-
 @Configuration
 public class RateLimiterConfig {
 
@@ -18,12 +16,12 @@ public class RateLimiterConfig {
     private int windowInSeconds;
 
     @Bean
-    public RMapCache<String, Integer> rateLimitCache(RedissonClient redissonClient) {
+    RMapCache<String, Integer> rateLimitCache(RedissonClient redissonClient) {
         return redissonClient.getMapCache("rate_limiter_cache");
     }
 
     @Bean
-    public RateLimitProperties rateLimitProperties() {
+    RateLimitProperties rateLimitProperties() {
         return new RateLimitProperties(requestsPerMinute, windowInSeconds);
     }
 

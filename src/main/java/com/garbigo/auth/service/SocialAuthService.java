@@ -1,6 +1,5 @@
 package com.garbigo.auth.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.garbigo.auth.dto.AuthResponse;
 import com.garbigo.auth.dto.SocialLoginRequest;
 import com.garbigo.auth.dto.UserDto;
@@ -17,9 +16,13 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigInteger;
 import java.security.KeyFactory;
@@ -29,14 +32,21 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class SocialAuthService {
 
+    // Shared, reusable descriptor for a plain JSON-object response body.
+    // Using this with RestTemplate.exchange(...) instead of getForEntity(url, Map.class)
+    // gets a properly generic Map<String, Object> back instead of a raw Map.
+    private static final ParameterizedTypeReference<Map<String, Object>> JSON_OBJECT =
+            new ParameterizedTypeReference<>() {};
+
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private final ModelMapper modelMapper = new ModelMapper();
 
     @Value("${google.client-id}")
@@ -88,7 +98,13 @@ public class SocialAuthService {
             String debugUrl = "https://graph.facebook.com/debug_token?input_token="
                     + request.getToken() + "&access_token=" + appAccessToken;
 
-            ResponseEntity<Map> response = restTemplate.getForEntity(debugUrl, Map.class);
+            ResponseEntity<Map<String, Object>> response =
+                    restTemplate.exchange(debugUrl, HttpMethod.GET, null, JSON_OBJECT);
+
+            // Still an unchecked cast: "data" is itself a nested JSON object, and a
+            // Map<String, Object>'s values are erased to Object at runtime, so there's
+            // no way for the compiler to verify this one level down. Safe here because
+            // Facebook's debug_token response shape is fixed by their API contract.
             @SuppressWarnings("unchecked")
             Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
 
@@ -100,7 +116,8 @@ public class SocialAuthService {
             String userInfoUrl = "https://graph.facebook.com/" + userId +
                     "?fields=id,name,email&access_token=" + request.getToken();
 
-            ResponseEntity<Map> userResponse = restTemplate.getForEntity(userInfoUrl, Map.class);
+            ResponseEntity<Map<String, Object>> userResponse =
+                    restTemplate.exchange(userInfoUrl, HttpMethod.GET, null, JSON_OBJECT);
             Map<String, Object> userInfo = userResponse.getBody();
 
             String email = (String) userInfo.get("email");
@@ -119,13 +136,19 @@ public class SocialAuthService {
     public AuthResponse appleLogin(SocialLoginRequest request) {
         try {
             String jwksUrl = "https://appleid.apple.com/auth/keys";
-            ResponseEntity<Map> jwksResponse = restTemplate.getForEntity(jwksUrl, Map.class);
+            ResponseEntity<Map<String, Object>> jwksResponse =
+                    restTemplate.exchange(jwksUrl, HttpMethod.GET, null, JSON_OBJECT);
+
+            // Same story as "data" above: "keys" is a nested JSON array of objects inside
+            // a Map<String, Object>, so extracting it is an inherently unchecked cast.
+            @SuppressWarnings("unchecked")
             List<Map<String, Object>> keys =
                     (List<Map<String, Object>>) jwksResponse.getBody().get("keys");
 
             String[] parts = request.getToken().split("\\.");
             String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]));
-            Map<String, String> header = objectMapper.readValue(headerJson, Map.class);
+            Map<String, String> header =
+                    jsonMapper.readValue(headerJson, new TypeReference<Map<String, String>>() {});
             String kid = header.get("kid");
 
             Map<String, Object> key = keys.stream()
@@ -147,7 +170,9 @@ public class SocialAuthService {
                     .parseSignedClaims(request.getToken())
                     .getPayload();
 
-            List<String> audience = (List<String>) claims.getAudience();
+            // Claims.getAudience() already returns Set<String> - no cast needed (and
+            // casting a Set to a List, as the previous code did, was never actually valid).
+            Set<String> audience = claims.getAudience();
             if (audience == null || !audience.contains(appleClientId)) {
                 throw new CustomException("Invalid Apple audience");
             }
