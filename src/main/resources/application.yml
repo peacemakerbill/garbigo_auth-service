@@ -22,7 +22,7 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: thepeacemakerske@gmail.com
-    password: 'mjyk cibp uids weiy'
+    password:
     properties:
       mail:
         smtp:
@@ -40,11 +40,11 @@ spring:
 
 cloudinary:
   cloud-name: thepeacemakersllc
-  api-key: 279386562332176
-  api-secret: _UVXMFDd78NXrqPrIQA-JJK_u98
+  api-key: 
+  api-secret: 
 
 jwt:
-  secret: pR5q9T8wX2z7C4v3B6nM1kLj8HgFdEaSbQcW3eZr4tY7uKiOp9L0mN2bV5cX8jH
+  secret: 
   expiration: 2592000
 
 rate-limit:
@@ -58,12 +58,12 @@ app:
   url: http://localhost:3000
 
 google:
-  client-id: your-google-client-id.apps.googleusercontent.com
+  client-id: 
 
 facebook:
-  app-id: your-facebook-app-id
-  app-secret: your-facebook-app-secret
+  app-id: 
+  app-secret: 
 
 github:
-  client-id: your-github-oauth-client-id
-  client-secret: your-github-oauth-client-secret
+  client-id: 
+  client-secret: 
