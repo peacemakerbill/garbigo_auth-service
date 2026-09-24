@@ -1,5 +1,6 @@
 package com.garbigo.auth.security;
 
+import com.garbigo.auth.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -24,6 +25,14 @@ public class JwtUtil {
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    /**
+     * Reads back the userId claim set by generateToken. Returns null for a token
+     * issued before this claim existed.
+     */
+    public String extractUserId(String token) {
+        return extractClaim(token, claims -> claims.get("userId", String.class));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -52,12 +61,13 @@ public class JwtUtil {
      */
     public record GeneratedToken(String token, Instant expiresAt) {}
 
-    public GeneratedToken generateToken(UserDetails userDetails) {
+    public GeneratedToken generateToken(User user) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(expiration);
 
         String token = Jwts.builder()
-                .subject(userDetails.getUsername())
+                .subject(user.getUsername())
+                .claim("userId", user.getId())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
                 .signWith(getSignInKey())
