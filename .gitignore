@@ -4,6 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Environment ###
+# Real local secrets - never commit. .env.example stays tracked as the template.
+.env
+
 ### STS ###
 .apt_generated
 .classpath
