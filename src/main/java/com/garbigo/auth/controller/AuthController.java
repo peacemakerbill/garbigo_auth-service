@@ -37,12 +37,12 @@ public class AuthController {
     // all - SecurityConfig doesn't list this as public, so JwtFilter already ran and
     // authenticated the request before this method is invoked.
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(HttpServletRequest request) {
+    public ResponseEntity<MessageResponse> logout(HttpServletRequest request) {
         String token = extractBearerToken(request);
         if (token != null) {
             tokenBlacklistService.revoke(token);
         }
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
     }
 
     private String extractBearerToken(HttpServletRequest request) {
