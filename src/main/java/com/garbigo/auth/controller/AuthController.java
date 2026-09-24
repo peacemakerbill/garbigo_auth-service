@@ -5,6 +5,7 @@ import com.garbigo.auth.security.TokenBlacklistService;
 import com.garbigo.auth.service.AuthService;
 import com.garbigo.auth.service.SocialAuthService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,12 +25,12 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest request) {
+    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
         return ResponseEntity.ok(authService.signup(request));
     }
 
     @PostMapping("/signin")
-    public ResponseEntity<AuthResponse> signin(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> signin(@Valid @RequestBody AuthRequest request) {
         return ResponseEntity.ok(authService.signin(request));
     }
 
@@ -59,31 +60,33 @@ public class AuthController {
         return ResponseEntity.ok("Account verified successfully");
     }
 
-    // Endpoint for Resending Verification Email
+    // Only ever reads the email - PasswordResetRequest fits exactly (was previously
+    // AuthRequest, which would have wrongly required an unused password field once
+    // @Valid was added).
     @PostMapping("/resend-verification")
-    public ResponseEntity<String> resendVerification(@RequestBody AuthRequest request) {
-        try {
-            authService.resendVerificationEmail(request.getEmail());
-            return ResponseEntity.ok("Verification email resent successfully");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to resend verification: " + e.getMessage());
-        }
+    public ResponseEntity<String> resendVerification(@Valid @RequestBody PasswordResetRequest request) {
+        authService.resendVerificationEmail(request.getEmail());
+        return ResponseEntity.ok("Verification email resent successfully");
     }
 
     @PostMapping("/reset-password/request")
-    public ResponseEntity<String> requestPasswordReset(@RequestBody PasswordResetRequest request) {
+    public ResponseEntity<String> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
         authService.requestPasswordReset(request.getEmail());
         return ResponseEntity.ok("Password reset link sent to email");
     }
 
+    // PasswordResetConfirmRequest, not ChangePasswordRequest: this flow (reset via
+    // emailed token) has no "old password" to check, unlike the authenticated
+    // change-password endpoint below.
     @PostMapping("/reset-password/confirm")
-    public ResponseEntity<String> confirmPasswordReset(@RequestParam String token, @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<String> confirmPasswordReset(@RequestParam String token,
+                                                         @Valid @RequestBody PasswordResetConfirmRequest request) {
         authService.resetPassword(token, request.getNewPassword());
         return ResponseEntity.ok("Password reset successfully");
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<String> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(request);
         return ResponseEntity.ok("Password changed successfully");
     }
@@ -95,20 +98,20 @@ public class AuthController {
 
     // request.token = the Google ID token from Google Sign-In on the client.
     @PostMapping("/social/google")
-    public ResponseEntity<AuthResponse> googleLogin(@RequestBody SocialLoginRequest request) {
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody SocialLoginRequest request) {
         return ResponseEntity.ok(socialAuthService.googleLogin(request));
     }
 
     // request.token = the Facebook access token from the Facebook SDK on the client.
     @PostMapping("/social/facebook")
-    public ResponseEntity<AuthResponse> facebookLogin(@RequestBody SocialLoginRequest request) {
+    public ResponseEntity<AuthResponse> facebookLogin(@Valid @RequestBody SocialLoginRequest request) {
         return ResponseEntity.ok(socialAuthService.facebookLogin(request));
     }
 
     // request.token = the OAuth "code" GitHub redirects back with after the user approves
     // access - NOT an access token itself. See SocialAuthService.githubLogin for why.
     @PostMapping("/social/github")
-    public ResponseEntity<AuthResponse> githubLogin(@RequestBody SocialLoginRequest request) {
+    public ResponseEntity<AuthResponse> githubLogin(@Valid @RequestBody SocialLoginRequest request) {
         return ResponseEntity.ok(socialAuthService.githubLogin(request));
     }
 }

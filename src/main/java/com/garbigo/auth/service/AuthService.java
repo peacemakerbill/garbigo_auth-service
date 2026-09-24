@@ -101,6 +101,14 @@ public class AuthService {
 
 			return buildAuthResponse(user);
 
+		} catch (CustomException e) {
+			// Duplicate email/phone and rate-limit checks above are deliberate,
+			// client-facing validation failures - let the specific message through
+			// as-is instead of re-wrapping it into a vaguer "Signup failed: ..."
+			// message that also makes it harder to tell a real bug from expected
+			// user error when scanning logs.
+			System.err.println("SIGNUP ERROR: " + e.getMessage());
+			throw e;
 		} catch (Exception e) {
 			System.err.println("SIGNUP ERROR: " + e.getMessage());
 			e.printStackTrace();
