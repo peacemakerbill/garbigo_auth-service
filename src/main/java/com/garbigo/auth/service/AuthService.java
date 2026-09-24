@@ -60,8 +60,16 @@ public class AuthService {
 		this.rateLimiter = rateLimiter;
 	}
 
+	/**
+	 * Signup deliberately does NOT return a token. Previously it called
+	 * buildAuthResponse(user) directly, bypassing AuthenticationManager entirely - which
+	 * meant a brand-new, unverified account got a fully working JWT immediately, even
+	 * though User.isEnabled() (verified && active && !archived) would correctly block
+	 * that same account from signing in normally afterward. Returning just a
+	 * confirmation message here removes that inconsistency, not only the response shape.
+	 */
 	@Transactional
-	public AuthResponse signup(SignupRequest request) {
+	public MessageResponse signup(SignupRequest request) {
 		try {
 			rateLimiter.checkRateLimit();
 
@@ -99,14 +107,9 @@ public class AuthService {
 
 			sendEmailAndRabbitMQAsync(user, verifyToken);
 
-			return buildAuthResponse(user);
+			return new MessageResponse("Sign up completed successfully. Check your email for the verification link.");
 
 		} catch (CustomException e) {
-			// Duplicate email/phone and rate-limit checks above are deliberate,
-			// client-facing validation failures - let the specific message through
-			// as-is instead of re-wrapping it into a vaguer "Signup failed: ..."
-			// message that also makes it harder to tell a real bug from expected
-			// user error when scanning logs.
 			System.err.println("SIGNUP ERROR: " + e.getMessage());
 			throw e;
 		} catch (Exception e) {
@@ -228,6 +231,9 @@ public class AuthService {
 					System.err.println("Failed to send reset email: " + e.getMessage());
 				}
 			});
+		} catch (CustomException e) {
+			System.err.println("RESET PASSWORD ERROR: " + e.getMessage());
+			throw e;
 		} catch (Exception e) {
 			System.err.println("RESET PASSWORD ERROR: " + e.getMessage());
 			e.printStackTrace();
@@ -250,6 +256,9 @@ public class AuthService {
 			user.setPassword(passwordEncoder.encode(newPassword));
 			userRepository.save(user);
 			tokenRepository.delete(token);
+		} catch (CustomException e) {
+			System.err.println("RESET PASSWORD CONFIRM ERROR: " + e.getMessage());
+			throw e;
 		} catch (Exception e) {
 			System.err.println("RESET PASSWORD CONFIRM ERROR: " + e.getMessage());
 			e.printStackTrace();
@@ -271,6 +280,9 @@ public class AuthService {
 
 			user.setPassword(passwordEncoder.encode(request.getNewPassword()));
 			userRepository.save(user);
+		} catch (CustomException e) {
+			System.err.println("CHANGE PASSWORD ERROR: " + e.getMessage());
+			throw e;
 		} catch (Exception e) {
 			System.err.println("CHANGE PASSWORD ERROR: " + e.getMessage());
 			e.printStackTrace();
