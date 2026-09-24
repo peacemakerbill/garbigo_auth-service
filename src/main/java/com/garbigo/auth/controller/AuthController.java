@@ -1,8 +1,10 @@
 package com.garbigo.auth.controller;
 
 import com.garbigo.auth.dto.*;
+import com.garbigo.auth.security.TokenBlacklistService;
 import com.garbigo.auth.service.AuthService;
 import com.garbigo.auth.service.SocialAuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +14,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final SocialAuthService socialAuthService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public AuthController(AuthService authService, SocialAuthService socialAuthService) {
+    public AuthController(AuthService authService, SocialAuthService socialAuthService,
+                           TokenBlacklistService tokenBlacklistService) {
         this.authService = authService;
         this.socialAuthService = socialAuthService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @PostMapping("/signup")
@@ -26,6 +31,26 @@ public class AuthController {
     @PostMapping("/signin")
     public ResponseEntity<AuthResponse> signin(@RequestBody AuthRequest request) {
         return ResponseEntity.ok(authService.signin(request));
+    }
+
+    // Requires a valid (not-yet-revoked, not-expired) token to reach this point at
+    // all - SecurityConfig doesn't list this as public, so JwtFilter already ran and
+    // authenticated the request before this method is invoked.
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletRequest request) {
+        String token = extractBearerToken(request);
+        if (token != null) {
+            tokenBlacklistService.revoke(token);
+        }
+        return ResponseEntity.ok("Logged out successfully");
+    }
+
+    private String extractBearerToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 
     @GetMapping("/verify")

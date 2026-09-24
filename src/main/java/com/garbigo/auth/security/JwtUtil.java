@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Component
@@ -33,6 +34,25 @@ public class JwtUtil {
      */
     public String extractUserId(String token) {
         return extractClaim(token, claims -> claims.get("userId", String.class));
+    }
+
+    /**
+     * Reads back the jti (JWT ID) claim set by generateToken - what
+     * TokenBlacklistService keys revocation on. Returns null for a token issued
+     * before this claim existed, which TokenBlacklistService treats as
+     * "can't be revoked" rather than an error.
+     */
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
+    }
+
+    /**
+     * Public (rather than the previous private Date-returning version) so
+     * TokenBlacklistService can compute how long a revocation entry needs to live:
+     * exactly until the token would have expired on its own anyway.
+     */
+    public Instant extractExpiration(String token) {
+        return extractClaim(token, claims -> claims.getExpiration().toInstant());
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -66,6 +86,7 @@ public class JwtUtil {
         Instant expiresAt = now.plusSeconds(expiration);
 
         String token = Jwts.builder()
+                .id(UUID.randomUUID().toString())  // jti - what logout revokes by
                 .subject(user.getUsername())
                 .claim("userId", user.getId())
                 .issuedAt(Date.from(now))
@@ -82,10 +103,6 @@ public class JwtUtil {
     }
 
     private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+        return extractExpiration(token).isBefore(Instant.now());
     }
 }

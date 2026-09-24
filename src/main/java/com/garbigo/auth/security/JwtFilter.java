@@ -18,10 +18,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtFilter(JwtUtil jwtUtil, UserDetailsServiceImpl userDetailsService) {
+    public JwtFilter(JwtUtil jwtUtil, UserDetailsServiceImpl userDetailsService,
+                      TokenBlacklistService tokenBlacklistService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -31,6 +34,14 @@ public class JwtFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
+
+            // A revoked token would otherwise still pass signature + expiry checks
+            // below just fine - that's the whole reason this check has to exist.
+            if (tokenBlacklistService.isRevoked(jwtUtil.extractJti(token))) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String email = jwtUtil.extractUsername(token);
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
