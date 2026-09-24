@@ -14,7 +14,6 @@ import com.garbigo.auth.util.RateLimiter;
 
 import jakarta.mail.MessagingException;
 
-import org.modelmapper.ModelMapper;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -42,14 +41,13 @@ public class AuthService {
 	private final Cloudinary cloudinary;
 	private final RabbitTemplate rabbitTemplate;
 	private final RateLimiter rateLimiter;
-	private final ModelMapper modelMapper;
 
 	@Value("${rabbitmq.queue.user-created}")
 	private String userCreatedQueue;
 
 	public AuthService(UserRepository userRepository, TokenRepository tokenRepository, PasswordEncoder passwordEncoder,
 			AuthenticationManager authenticationManager, JwtUtil jwtUtil, EmailService emailService,
-			Cloudinary cloudinary, RabbitTemplate rabbitTemplate, RateLimiter rateLimiter, ModelMapper modelMapper) {
+			Cloudinary cloudinary, RabbitTemplate rabbitTemplate, RateLimiter rateLimiter) {
 		this.userRepository = userRepository;
 		this.tokenRepository = tokenRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -59,7 +57,6 @@ public class AuthService {
 		this.cloudinary = cloudinary;
 		this.rabbitTemplate = rabbitTemplate;
 		this.rateLimiter = rateLimiter;
-		this.modelMapper = modelMapper;
 	}
 
 	@Transactional
@@ -272,9 +269,8 @@ public class AuthService {
 	}
 
 	private AuthResponse buildAuthResponse(User user) {
-		UserDto userDto = modelMapper.map(user, UserDto.class);
-
-		return new AuthResponse(jwtUtil.generateToken(user), user.getRole().name(), user.isVerified(), userDto);
+		JwtUtil.GeneratedToken generated = jwtUtil.generateToken(user);
+		return new AuthResponse(generated.token(), user.getRole().name(), generated.expiresAt());
 	}
 
 	public String uploadProfilePicture(org.springframework.web.multipart.MultipartFile file) throws IOException {

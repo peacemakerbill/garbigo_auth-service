@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.time.Instant;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -43,13 +44,26 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);  // Returns SecretKey directly
     }
 
-    public String generateToken(UserDetails userDetails) {
-        return Jwts.builder()
+    /**
+     * A freshly issued token plus the exact instant it expires at. Both come from the
+     * same Instant computed once in generateToken, so this expiresAt is guaranteed to
+     * match the token's own "exp" claim exactly - callers can surface it to clients
+     * (e.g. in AuthResponse) without re-parsing the token to find out.
+     */
+    public record GeneratedToken(String token, Instant expiresAt) {}
+
+    public GeneratedToken generateToken(UserDetails userDetails) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(expiration);
+
+        String token = Jwts.builder()
                 .subject(userDetails.getUsername())
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expiration * 1000))
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiresAt))
                 .signWith(getSignInKey())
                 .compact();
+
+        return new GeneratedToken(token, expiresAt);
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {

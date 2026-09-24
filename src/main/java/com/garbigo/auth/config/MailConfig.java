@@ -1,5 +1,6 @@
 package com.garbigo.auth.config;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.mail.autoconfigure.MailProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,8 +21,17 @@ import java.util.Properties;
  * strips one layer of wrapping quotes (and outer whitespace) from whatever
  * Spring Boot already bound from spring.mail.* before handing it to the
  * actual mail sender - so either version works.
+ * <p>
+ * MailSenderAutoConfiguration is itself gated by
+ * {@code @ConditionalOnMissingBean(MailSender.class)} on the whole class, and
+ * JavaMailSender extends MailSender - so defining our own JavaMailSender bean
+ * below suppresses that entire auto-configuration class, including the
+ * {@code @EnableConfigurationProperties(MailProperties.class)} declaration
+ * that would otherwise register the properties bean. @EnableConfigurationProperties
+ * here binds it ourselves instead, independent of that suppressed class.
  */
 @Configuration
+@EnableConfigurationProperties(MailProperties.class)
 public class MailConfig {
 
     @Bean

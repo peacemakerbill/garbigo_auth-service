@@ -2,7 +2,6 @@ package com.garbigo.auth.service;
 
 import com.garbigo.auth.dto.AuthResponse;
 import com.garbigo.auth.dto.SocialLoginRequest;
-import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.Role;
 import com.garbigo.auth.model.User;
@@ -12,7 +11,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -44,7 +42,6 @@ public class SocialAuthService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final RestTemplate restTemplate = new RestTemplate();
-    private final ModelMapper modelMapper;
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -61,10 +58,9 @@ public class SocialAuthService {
     @Value("${github.client-secret}")
     private String githubClientSecret;
 
-    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil, ModelMapper modelMapper) {
+    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
-        this.modelMapper = modelMapper;
     }
 
     public AuthResponse googleLogin(SocialLoginRequest request) {
@@ -253,13 +249,7 @@ public class SocialAuthService {
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        UserDto userDto = modelMapper.map(user, UserDto.class);
-
-        return new AuthResponse(
-                jwtUtil.generateToken(user),
-                user.getRole().name(),
-                user.isVerified(),
-                userDto
-        );
+        JwtUtil.GeneratedToken generated = jwtUtil.generateToken(user);
+        return new AuthResponse(generated.token(), user.getRole().name(), generated.expiresAt());
     }
 }
