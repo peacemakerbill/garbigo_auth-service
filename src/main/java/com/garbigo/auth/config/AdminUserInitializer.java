@@ -31,7 +31,7 @@ public class AdminUserInitializer implements CommandLineRunner {
         admin.setDisplayUsername("admin");
         admin.setFirstName("Admin");
         admin.setLastName("User");
-        admin.setPassword(passwordEncoder.encode("garbiadmin!"));
+        admin.setPassword(passwordEncoder.encode("graham219"));
         admin.setRole(Role.ADMIN);
         admin.setVerified(true);
         admin.setActive(true);
