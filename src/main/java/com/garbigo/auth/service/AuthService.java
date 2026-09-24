@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -160,6 +161,15 @@ public class AuthService {
 			User user = (User) authentication.getPrincipal();
 			return buildAuthResponse(user);
 
+		} catch (AuthenticationException e) {
+			// Covers both "no such email" and "wrong password" - Spring Security's
+			// DaoAuthenticationProvider already collapses UsernameNotFoundException
+			// into BadCredentialsException by default (hideUserNotFoundExceptions),
+			// specifically so a client can't use this endpoint to enumerate which
+			// emails have accounts. Relaying that generic message stays generic
+			// rather than leaking which of the two actually happened.
+			System.err.println("SIGNIN ERROR for " + request.getEmail() + ": " + e.getClass().getSimpleName());
+			throw new CustomException("Invalid email or password");
 		} catch (Exception e) {
 			System.err.println("SIGNIN ERROR: " + e.getMessage());
 			e.printStackTrace();
