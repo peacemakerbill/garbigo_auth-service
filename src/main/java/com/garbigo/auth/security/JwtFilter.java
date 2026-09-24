@@ -1,15 +1,18 @@
 package com.garbigo.auth.security;
 
+import com.garbigo.auth.dto.MessageResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 
@@ -19,6 +22,7 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     public JwtFilter(JwtUtil jwtUtil, UserDetailsServiceImpl userDetailsService,
                       TokenBlacklistService tokenBlacklistService) {
@@ -37,8 +41,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
             // A revoked token would otherwise still pass signature + expiry checks
             // below just fine - that's the whole reason this check has to exist.
+            // Unlike "no token sent" (which just proceeds unauthenticated and lets
+            // Spring Security's normal rules decide), a token that WAS valid and has
+            // been explicitly revoked gets a specific, actionable response instead of
+            // falling through to a generic access-denied - the client sent a real
+            // credential, it's just been logged out.
             if (tokenBlacklistService.isRevoked(jwtUtil.extractJti(token))) {
-                filterChain.doFilter(request, response);
+                respondTokenRevoked(response);
                 return;
             }
 
@@ -55,5 +64,13 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    private void respondTokenRevoked(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(
+                jsonMapper.writeValueAsString(new MessageResponse("Token has been revoked. Please sign in again."))
+        );
     }
 }
