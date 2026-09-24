@@ -1,28 +1,32 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
+
   application:
     name: auth-service
 
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/garbigo_auth}
+
   data:
-    mongodb:
-      uri: mongodb://localhost:27017/garbigo_auth
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: thepeacemakerske@gmail.com
-    password:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -39,31 +43,31 @@ spring:
       file-size-threshold: 2KB
 
 cloudinary:
-  cloud-name: thepeacemakersllc
-  api-key: 
-  api-secret: 
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
 jwt:
-  secret: 
-  expiration: 2592000
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:2592000}
 
 rate-limit:
-  requests-per-minute: 20
+  requests-per-minute: ${RATE_LIMIT_REQUESTS_PER_MINUTE:20}
 
 rabbitmq:
   queue:
-    user-created: user-created-queue
+    user-created: ${RABBITMQ_QUEUE_USER_CREATED:user-created-queue}
 
 app:
-  url: http://localhost:3000
+  url: ${APP_URL:http://localhost:3000}
 
 google:
-  client-id: 
+  client-id: ${GOOGLE_CLIENT_ID}
 
 facebook:
-  app-id: 
-  app-secret: 
+  app-id: ${FACEBOOK_APP_ID}
+  app-secret: ${FACEBOOK_APP_SECRET}
 
 github:
-  client-id: 
-  client-secret: 
+  client-id: ${GITHUB_CLIENT_ID}
+  client-secret: ${GITHUB_CLIENT_SECRET}
