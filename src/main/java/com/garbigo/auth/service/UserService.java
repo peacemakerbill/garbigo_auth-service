@@ -35,16 +35,11 @@ public class UserService {
 
     public UserDto getCurrentUserDto(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException("User not found"));
-        
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
+
         return modelMapper.map(user, UserDto.class);
     }
 
-    // ====================== USER PROFILE ======================
-
-    /**
-     * Update user profile using JSON (text fields only)
-     */
     public UserDto updateProfile(ProfileUpdateDto dto) {
         User user = getCurrentUser();
         updateUserFields(user, dto);
@@ -52,35 +47,30 @@ public class UserService {
         return modelMapper.map(user, UserDto.class);
     }
 
-    /**
-     * Update profile with multipart request (mainly for profile picture)
-     */
     public UserDto updateProfile(ProfileUpdateRequest request) {
         User user = getCurrentUser();
 
-        // Update text fields if provided
         updateUserFields(user, request);
 
-        // Handle profile picture upload
         if (request.getProfilePicture() != null && !request.getProfilePicture().isEmpty()) {
             try {
                 String contentType = request.getProfilePicture().getContentType();
                 if (contentType != null && !contentType.startsWith("image/")) {
-                    throw new CustomException("Only image files are allowed for profile picture");
+                    throw new CustomException("Please upload an image file for your profile picture.");
                 }
 
                 String url = authService.uploadProfilePicture(request.getProfilePicture());
                 user.setProfilePictureUrl(url);
+            } catch (CustomException e) {
+                throw e;
             } catch (Exception e) {
-                throw new CustomException("Failed to upload profile picture: " + e.getMessage());
+                throw new CustomException("We couldn't upload your profile picture. Please try again.");
             }
         }
 
         userRepository.save(user);
         return modelMapper.map(user, UserDto.class);
     }
-
-    // ====================== HELPER METHODS ======================
 
     private void updateUserFields(User user, Object request) {
         if (request instanceof ProfileUpdateDto dto) {
@@ -94,7 +84,7 @@ public class UserService {
         if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()
                 && !dto.getEmail().equals(user.getEmail())) {
             if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
-                throw new CustomException("Email already in use by another user");
+                throw new CustomException("This email is already used by another account.");
             }
             user.setEmail(dto.getEmail());
         }
@@ -102,9 +92,17 @@ public class UserService {
         if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().trim().isEmpty()
                 && !dto.getPhoneNumber().equals(user.getPhoneNumber())) {
             if (userRepository.findByPhoneNumber(dto.getPhoneNumber()).isPresent()) {
-                throw new CustomException("Phone number already in use by another user");
+                throw new CustomException("This phone number is already used by another account.");
             }
             user.setPhoneNumber(dto.getPhoneNumber());
+        }
+
+        if (dto.getUsername() != null && !dto.getUsername().trim().isEmpty()
+                && !dto.getUsername().equals(user.getDisplayUsername())) {
+            if (userRepository.findByDisplayUsername(dto.getUsername()).isPresent()) {
+                throw new CustomException("This username is already taken.");
+            }
+            user.setDisplayUsername(dto.getUsername());
         }
 
         if (dto.getFirstName() != null) user.setFirstName(dto.getFirstName());
@@ -119,7 +117,7 @@ public class UserService {
         if (req.getEmail() != null && !req.getEmail().trim().isEmpty()
                 && !req.getEmail().equals(user.getEmail())) {
             if (userRepository.findByEmail(req.getEmail()).isPresent()) {
-                throw new CustomException("Email already in use by another user");
+                throw new CustomException("This email is already used by another account.");
             }
             user.setEmail(req.getEmail());
         }
@@ -127,9 +125,17 @@ public class UserService {
         if (req.getPhoneNumber() != null && !req.getPhoneNumber().trim().isEmpty()
                 && !req.getPhoneNumber().equals(user.getPhoneNumber())) {
             if (userRepository.findByPhoneNumber(req.getPhoneNumber()).isPresent()) {
-                throw new CustomException("Phone number already in use by another user");
+                throw new CustomException("This phone number is already used by another account.");
             }
             user.setPhoneNumber(req.getPhoneNumber());
+        }
+
+        if (req.getUsername() != null && !req.getUsername().trim().isEmpty()
+                && !req.getUsername().equals(user.getDisplayUsername())) {
+            if (userRepository.findByDisplayUsername(req.getUsername()).isPresent()) {
+                throw new CustomException("This username is already taken.");
+            }
+            user.setDisplayUsername(req.getUsername());
         }
 
         if (req.getFirstName() != null) user.setFirstName(req.getFirstName());
@@ -140,15 +146,18 @@ public class UserService {
         if (req.getCollectionSchedule() != null) user.setCollectionSchedule(req.getCollectionSchedule());
     }
 
-    // ====================== ADMIN OPERATIONS ======================
-
     public UserDto createUser(User user) {
         if (user.getEmail() != null && userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new CustomException("Email already in use");
+            throw new CustomException("This email is already registered.");
         }
         if (user.getPhoneNumber() != null && !user.getPhoneNumber().trim().isEmpty()) {
             if (userRepository.findByPhoneNumber(user.getPhoneNumber()).isPresent()) {
-                throw new CustomException("Phone number already in use");
+                throw new CustomException("This phone number is already registered.");
+            }
+        }
+        if (user.getDisplayUsername() != null && !user.getDisplayUsername().trim().isEmpty()) {
+            if (userRepository.findByDisplayUsername(user.getDisplayUsername()).isPresent()) {
+                throw new CustomException("This username is already taken.");
             }
         }
 
@@ -162,20 +171,27 @@ public class UserService {
 
     public UserDto updateUser(String id, User update) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (update.getEmail() != null && !update.getEmail().equals(user.getEmail())) {
             if (userRepository.findByEmail(update.getEmail()).isPresent()) {
-                throw new CustomException("Email already in use by another user");
+                throw new CustomException("This email is already used by another account.");
             }
             user.setEmail(update.getEmail());
         }
 
         if (update.getPhoneNumber() != null && !update.getPhoneNumber().equals(user.getPhoneNumber())) {
             if (userRepository.findByPhoneNumber(update.getPhoneNumber()).isPresent()) {
-                throw new CustomException("Phone number already in use by another user");
+                throw new CustomException("This phone number is already used by another account.");
             }
             user.setPhoneNumber(update.getPhoneNumber());
+        }
+
+        if (update.getDisplayUsername() != null && !update.getDisplayUsername().equals(user.getDisplayUsername())) {
+            if (userRepository.findByDisplayUsername(update.getDisplayUsername()).isPresent()) {
+                throw new CustomException("This username is already taken.");
+            }
+            user.setDisplayUsername(update.getDisplayUsername());
         }
 
         if (update.getFirstName() != null) user.setFirstName(update.getFirstName());
@@ -190,18 +206,18 @@ public class UserService {
 
     public void deleteUser(String id) {
         User userToDelete = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         User currentUser = getCurrentUser();
 
         if (userToDelete.getId().equals(currentUser.getId())) {
-            throw new CustomException("You cannot delete your own account");
+            throw new CustomException("You can't delete your own account.");
         }
 
         if (userToDelete.getRole() == Role.ADMIN) {
             long adminCount = userRepository.countByRole(Role.ADMIN);
             if (adminCount <= 1) {
-                throw new CustomException("Cannot delete the last admin account");
+                throw new CustomException("You can't remove the last admin account.");
             }
         }
 
@@ -213,10 +229,10 @@ public class UserService {
         preventLastAdminModification(id, "archive");
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (user.isArchived()) {
-            throw new CustomException("User is already archived");
+            throw new CustomException("This user is already archived.");
         }
 
         user.setArchived(true);
@@ -227,10 +243,10 @@ public class UserService {
         preventSelfModification(id, "unarchive");
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (!user.isArchived()) {
-            throw new CustomException("User is not archived");
+            throw new CustomException("This user isn't archived.");
         }
 
         user.setArchived(false);
@@ -241,10 +257,10 @@ public class UserService {
         preventSelfModification(id, "activate");
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (user.isActive()) {
-            throw new CustomException("User is already active");
+            throw new CustomException("This user is already active.");
         }
 
         user.setActive(true);
@@ -256,10 +272,10 @@ public class UserService {
         preventLastAdminModification(id, "deactivate");
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (!user.isActive()) {
-            throw new CustomException("User is already deactivated");
+            throw new CustomException("This user is already deactivated.");
         }
 
         user.setActive(false);
@@ -270,10 +286,10 @@ public class UserService {
         preventSelfModification(id, "verify");
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (user.isVerified()) {
-            throw new CustomException("User is already verified");
+            throw new CustomException("This user is already verified.");
         }
 
         user.setVerified(true);
@@ -285,33 +301,31 @@ public class UserService {
         preventLastAdminModification(id, "unverify");
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (!user.isVerified()) {
-            throw new CustomException("User is not verified");
+            throw new CustomException("This user isn't verified.");
         }
 
         user.setVerified(false);
         userRepository.save(user);
     }
 
-    // ====================== HELPER METHODS ======================
-
     private void preventSelfModification(String targetId, String action) {
         User current = getCurrentUser();
         if (current.getId().equals(targetId)) {
-            throw new CustomException("You cannot " + action + " your own account");
+            throw new CustomException("You can't " + action + " your own account.");
         }
     }
 
     private void preventLastAdminModification(String targetId, String action) {
         User targetUser = userRepository.findById(targetId)
-                .orElseThrow(() -> new CustomException("User not found"));
+                .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
         if (targetUser.getRole() == Role.ADMIN) {
             long adminCount = userRepository.countByRole(Role.ADMIN);
             if (adminCount <= 1) {
-                throw new CustomException("Cannot " + action + " the last admin account");
+                throw new CustomException("You can't " + action + " the last admin account.");
             }
         }
     }
@@ -319,7 +333,7 @@ public class UserService {
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new CustomException("No authenticated user");
+            throw new CustomException("Please sign in to continue.");
         }
         return (User) authentication.getPrincipal();
     }

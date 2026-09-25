@@ -28,14 +28,9 @@ import java.util.Map;
 @Service
 public class SocialAuthService {
 
-    // Shared, reusable descriptor for a plain JSON-object response body.
-    // Using this with RestTemplate.exchange(...) instead of getForEntity(url, Map.class)
-    // gets a properly generic Map<String, Object> back instead of a raw Map.
     private static final ParameterizedTypeReference<Map<String, Object>> JSON_OBJECT =
             new ParameterizedTypeReference<>() {};
 
-    // Same idea, for endpoints that return a JSON array of objects (e.g. GitHub's
-    // /user/emails), so we don't fall back to a raw List either.
     private static final ParameterizedTypeReference<List<Map<String, Object>>> JSON_ARRAY =
             new ParameterizedTypeReference<>() {};
 
@@ -72,7 +67,7 @@ public class SocialAuthService {
 
             GoogleIdToken idToken = verifier.verify(request.getToken());
             if (idToken == null) {
-                throw new CustomException("Invalid Google token");
+                throw new CustomException("We couldn't verify your Google account. Please try signing in again.");
             }
 
             GoogleIdToken.Payload payload = idToken.getPayload();
@@ -84,8 +79,10 @@ public class SocialAuthService {
             userRepository.save(user);
 
             return buildAuthResponse(user);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
-            throw new CustomException("Google login failed: " + e.getMessage());
+            throw new CustomException("We couldn't sign you in with Google. Please try again.");
         }
     }
 
@@ -98,15 +95,11 @@ public class SocialAuthService {
             ResponseEntity<Map<String, Object>> response =
                     restTemplate.exchange(debugUrl, HttpMethod.GET, null, JSON_OBJECT);
 
-            // Still an unchecked cast: "data" is itself a nested JSON object, and a
-            // Map<String, Object>'s values are erased to Object at runtime, so there's
-            // no way for the compiler to verify this one level down. Safe here because
-            // Facebook's debug_token response shape is fixed by their API contract.
             @SuppressWarnings("unchecked")
             Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
 
             if (data == null || !(Boolean) data.get("is_valid")) {
-                throw new CustomException("Invalid Facebook token");
+                throw new CustomException("We couldn't verify your Facebook account. Please try signing in again.");
             }
 
             String userId = (String) data.get("user_id");
@@ -125,23 +118,13 @@ public class SocialAuthService {
             userRepository.save(user);
 
             return buildAuthResponse(user);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
-            throw new CustomException("Facebook login failed: " + e.getMessage());
+            throw new CustomException("We couldn't sign you in with Facebook. Please try again.");
         }
     }
 
-    /**
-     * GitHub sign up / sign in.
-     * <p>
-     * Unlike Google/Facebook, GitHub doesn't hand a mobile/web client a ready-made ID or
-     * access token. The client instead drives the standard OAuth "web application flow": it
-     * opens {@code https://github.com/login/oauth/authorize?client_id=...} in a
-     * browser/webview, the user approves, and GitHub redirects back with a short-lived,
-     * single-use {@code code}. That {@code code} is what the client sends here as
-     * {@link SocialLoginRequest#getToken()} - this method does the server-side half of the
-     * exchange (code -> access token -> profile), since the client secret must never be
-     * shipped to the client.
-     */
     public AuthResponse githubLogin(SocialLoginRequest request) {
         try {
             String accessToken = exchangeGithubCodeForToken(request.getToken());
@@ -156,21 +139,20 @@ public class SocialAuthService {
 
             Map<String, Object> profile = profileResponse.getBody();
             if (profile == null) {
-                throw new CustomException("Failed to fetch GitHub profile");
+                throw new CustomException("We couldn't retrieve your GitHub profile. Please try again.");
             }
 
             String name = (String) profile.get("name");
             String login = (String) profile.get("login");
             String email = (String) profile.get("email");
 
-            // GitHub only includes "email" on /user when the user has made it public.
-            // Otherwise we fall back to /user/emails for their primary verified address.
             if (email == null) {
                 email = fetchPrimaryGithubEmail(profileHeaders);
             }
 
             if (email == null) {
-                throw new CustomException("GitHub account has no verified email address available");
+                throw new CustomException("Your GitHub account needs a verified email address before you can "
+                        + "sign in. Please verify an email on GitHub and try again.");
             }
 
             User user = findOrCreateSocialUser(email, name != null ? name : login);
@@ -181,7 +163,7 @@ public class SocialAuthService {
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
-            throw new CustomException("GitHub login failed: " + e.getMessage());
+            throw new CustomException("We couldn't sign you in with GitHub. Please try again.");
         }
     }
 
@@ -204,10 +186,7 @@ public class SocialAuthService {
         String accessToken = tokenBody != null ? (String) tokenBody.get("access_token") : null;
 
         if (accessToken == null) {
-            String error = tokenBody != null
-                    ? String.valueOf(tokenBody.getOrDefault("error_description", tokenBody.get("error")))
-                    : "empty response";
-            throw new CustomException("GitHub token exchange failed: " + error);
+            throw new CustomException("We couldn't sign you in with GitHub. Please try again.");
         }
 
         return accessToken;

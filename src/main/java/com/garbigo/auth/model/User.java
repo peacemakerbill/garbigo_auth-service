@@ -20,34 +20,24 @@ import java.util.List;
 @Document(collection = "users")
 public class User implements UserDetails {
 
-    // UserDetails extends Serializable; without this, IDEs flag "class does not
-    // declare a serialVersionUID". Spring Security never actually serializes this
-    // object here (sessions are STATELESS), so the value itself doesn't matter -
-    // it just needs to exist.
     private static final long serialVersionUID = 1L;
 
     @Id
     private String id;
 
-    // Named displayUsername (not "username") so Lombok can actually generate a
-    // getter/setter for it. getUsername() below is the UserDetails contract method
-    // and intentionally returns the email instead - if this field were also called
-    // "username", Lombok would silently skip generating its accessor because
-    // getUsername() already exists, leaving the field impossible to read back out.
-    // @Field/@JsonProperty keep the Mongo document key and the JSON wire format as
-    // "username" - only the Java identifier changed, not stored data or the API shape.
     @Field("username")
     @JsonProperty("username")
+    @Indexed(unique = true, sparse = true)
     private String displayUsername;
 
     private String firstName;
     private String middleName;
     private String lastName;
 
-    @Indexed(unique = true)           // Unique index on email
+    @Indexed(unique = true)
     private String email;
 
-    @Indexed(unique = true)           // Unique index on phoneNumber
+    @Indexed(unique = true)
     private String phoneNumber;
 
     private String homeAddress;
@@ -81,7 +71,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email;   // Using email as username for Spring Security
+        return email;
     }
 
     @Override

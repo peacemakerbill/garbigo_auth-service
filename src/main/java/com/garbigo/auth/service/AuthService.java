@@ -17,6 +17,7 @@ import jakarta.mail.MessagingException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -60,27 +61,24 @@ public class AuthService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * Signup deliberately does NOT return a token. Previously it called
-	 * buildAuthResponse(user) directly, bypassing AuthenticationManager entirely - which
-	 * meant a brand-new, unverified account got a fully working JWT immediately, even
-	 * though User.isEnabled() (verified && active && !archived) would correctly block
-	 * that same account from signing in normally afterward. Returning just a
-	 * confirmation message here removes that inconsistency, not only the response shape.
-	 */
 	@Transactional
 	public MessageResponse signup(SignupRequest request) {
 		try {
 			rateLimiter.checkRateLimit();
 
-			// === Duplicate Checks ===
 			if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-				throw new CustomException("Email already in use");
+				throw new CustomException("This email is already registered. Please sign in or use a different email.");
+			}
+
+			if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
+				if (userRepository.findByDisplayUsername(request.getUsername()).isPresent()) {
+					throw new CustomException("This username is already taken. Please choose a different one.");
+				}
 			}
 
 			if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
 				if (userRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent()) {
-					throw new CustomException("Phone number already in use");
+					throw new CustomException("This phone number is already registered.");
 				}
 			}
 
@@ -107,7 +105,7 @@ public class AuthService {
 
 			sendEmailAndRabbitMQAsync(user, verifyToken);
 
-			return new MessageResponse("Sign up completed successfully. Check your email for the verification link.");
+			return new MessageResponse("Your account has been created! Please check your email to verify your account.");
 
 		} catch (CustomException e) {
 			System.err.println("SIGNUP ERROR: " + e.getMessage());
@@ -115,15 +113,16 @@ public class AuthService {
 		} catch (Exception e) {
 			System.err.println("SIGNUP ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new CustomException("Signup failed: " + e.getMessage());
+			throw new CustomException("We couldn't complete your sign up. Please try again.");
 		}
 	}
 
 	public void resendVerificationEmail(String email) {
-		User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException("User not found"));
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new CustomException("We couldn't find an account with that email."));
 
 		if (user.isVerified()) {
-			throw new CustomException("Account already verified");
+			throw new CustomException("This account is already verified.");
 		}
 
 		String verifyToken = UUID.randomUUID().toString();
@@ -172,41 +171,49 @@ public class AuthService {
 			User user = (User) authentication.getPrincipal();
 			return buildAuthResponse(user);
 
+		} catch (DisabledException e) {
+			System.err.println("SIGNIN BLOCKED for " + request.getEmail() + ": account disabled");
+			User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+			if (user != null && !user.isVerified()) {
+				throw new CustomException("Please verify your email before signing in. Check your inbox for "
+						+ "the verification link, or request a new one if it has expired.");
+			}
+			if (user != null && user.isArchived()) {
+				throw new CustomException("This account has been closed. Please contact support for help.");
+			}
+			throw new CustomException("This account is currently inactive. Please contact support for help.");
 		} catch (AuthenticationException e) {
-			// Covers both "no such email" and "wrong password" - Spring Security's
-			// DaoAuthenticationProvider already collapses UsernameNotFoundException
-			// into BadCredentialsException by default (hideUserNotFoundExceptions),
-			// specifically so a client can't use this endpoint to enumerate which
-			// emails have accounts. Relaying that generic message stays generic
-			// rather than leaking which of the two actually happened.
 			System.err.println("SIGNIN ERROR for " + request.getEmail() + ": " + e.getClass().getSimpleName());
 			throw new CustomException("Invalid email or password");
 		} catch (Exception e) {
 			System.err.println("SIGNIN ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new CustomException("Login failed: " + e.getMessage());
+			throw new CustomException("We couldn't sign you in right now. Please try again.");
 		}
 	}
 
 	public void verifyAccount(String tokenStr) {
 		try {
 			Token token = tokenRepository.findByToken(tokenStr)
-					.orElseThrow(() -> new CustomException("Invalid verification token"));
+					.orElseThrow(() -> new CustomException("This verification link isn't valid."));
 
 			if (token.getExpiry() < System.currentTimeMillis()) {
-				throw new CustomException("Verification token expired");
+				throw new CustomException("This verification link has expired. Please request a new one.");
 			}
 
 			User user = userRepository.findById(token.getUserId())
-					.orElseThrow(() -> new CustomException("User not found"));
+					.orElseThrow(() -> new CustomException("We couldn't find an account for this link."));
 
 			user.setVerified(true);
 			userRepository.save(user);
 			tokenRepository.delete(token);
+		} catch (CustomException e) {
+			System.err.println("VERIFY ERROR: " + e.getMessage());
+			throw e;
 		} catch (Exception e) {
 			System.err.println("VERIFY ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new CustomException("Verification failed: " + e.getMessage());
+			throw new CustomException("We couldn't verify your account right now. Please try again.");
 		}
 	}
 
@@ -214,7 +221,8 @@ public class AuthService {
 		try {
 			rateLimiter.checkRateLimit();
 
-			User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException("User not found"));
+			User user = userRepository.findByEmail(email)
+					.orElseThrow(() -> new CustomException("We couldn't find an account with that email."));
 
 			String resetToken = UUID.randomUUID().toString();
 			Token token = new Token();
@@ -237,21 +245,21 @@ public class AuthService {
 		} catch (Exception e) {
 			System.err.println("RESET PASSWORD ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new CustomException("Password reset request failed: " + e.getMessage());
+			throw new CustomException("We couldn't send the password reset email. Please try again.");
 		}
 	}
 
 	public void resetPassword(String tokenStr, String newPassword) {
 		try {
 			Token token = tokenRepository.findByToken(tokenStr)
-					.orElseThrow(() -> new CustomException("Invalid reset token"));
+					.orElseThrow(() -> new CustomException("This password reset link isn't valid."));
 
 			if (token.getExpiry() < System.currentTimeMillis()) {
-				throw new CustomException("Reset token expired");
+				throw new CustomException("This password reset link has expired. Please request a new one.");
 			}
 
 			User user = userRepository.findById(token.getUserId())
-					.orElseThrow(() -> new CustomException("User not found"));
+					.orElseThrow(() -> new CustomException("We couldn't find an account for this link."));
 
 			user.setPassword(passwordEncoder.encode(newPassword));
 			userRepository.save(user);
@@ -262,7 +270,7 @@ public class AuthService {
 		} catch (Exception e) {
 			System.err.println("RESET PASSWORD CONFIRM ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new CustomException("Password reset failed: " + e.getMessage());
+			throw new CustomException("We couldn't reset your password. Please try again.");
 		}
 	}
 
@@ -271,11 +279,11 @@ public class AuthService {
 			User user = getCurrentUser();
 
 			if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-				throw new CustomException("Old password is incorrect");
+				throw new CustomException("Your current password is incorrect.");
 			}
 
 			if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-				throw new CustomException("New passwords do not match");
+				throw new CustomException("New passwords do not match.");
 			}
 
 			user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -286,14 +294,14 @@ public class AuthService {
 		} catch (Exception e) {
 			System.err.println("CHANGE PASSWORD ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new CustomException("Password change failed: " + e.getMessage());
+			throw new CustomException("We couldn't change your password. Please try again.");
 		}
 	}
 
 	private User getCurrentUser() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null || !authentication.isAuthenticated()) {
-			throw new CustomException("No authenticated user");
+			throw new CustomException("Please sign in to continue.");
 		}
 		return (User) authentication.getPrincipal();
 	}
@@ -311,7 +319,7 @@ public class AuthService {
 		} catch (Exception e) {
 			System.err.println("UPLOAD ERROR: " + e.getMessage());
 			e.printStackTrace();
-			throw new IOException("Failed to upload profile picture: " + e.getMessage());
+			throw new IOException("We couldn't upload your profile picture. Please try again.");
 		}
 	}
 }
