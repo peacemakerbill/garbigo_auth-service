@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="color-scheme" content="light">
     <meta name="supported-color-schemes" content="light">
-    <title>Verify Your Garbigo Account</title>
+    <title>Reset Your Garbigo Password</title>
     <!--[if mso]>
     <noscript>
         <xml>
@@ -28,7 +28,7 @@
 </head>
 <body style="margin:0; padding:0; background-color:#f0f2f5;">
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f0f2f5;">
-    Confirm your email address to finish setting up your Garbigo account.
+    Reset your Garbigo account password. This link expires in 1 hour.
 </div>
 
 <center style="width:100%; background-color:#f0f2f5;">
@@ -41,28 +41,31 @@
             <td style="padding:40px 0;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden;">
                     <tr>
-                        <td bgcolor="#2e7d32" style="background-color:#2e7d32; padding:30px; text-align:center;">
+                        <td bgcolor="#d32f2f" style="background-color:#d32f2f; padding:30px; text-align:center;">
                             <h1 style="margin:0; font-family:Helvetica, Arial, sans-serif; font-size:26px; font-weight:bold; color:#ffffff;">
-                                Welcome to Garbigo
+                                Password Reset Request
                             </h1>
                         </td>
                     </tr>
                     <tr>
                         <td class="fluid-padding" style="padding:40px; text-align:center; font-family:Helvetica, Arial, sans-serif;">
                             <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
-                                Thank you for signing up. You're one step away from joining our garbage collection community.
+                                Hi <span th:text="${name}">there</span>,
+                            </p>
+                            <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                We received a request to reset the password for your Garbigo account.
                             </p>
                             <p style="margin:0 0 24px 0; font-size:16px; line-height:1.6; color:#333333;">
-                                Click the button below to verify your email address and activate your account.
+                                Click the button below to set a new password.
                             </p>
 
-                            <div th:with="verifyUrl=${appUrl} + '/auth/verify?token=' + ${token}">
+                            <div th:with="resetUrl=${appUrl} + '/auth/reset-password/confirm?token=' + ${token}">
                                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                                     <tr>
-                                        <td bgcolor="#2e7d32" style="background-color:#2e7d32; border-radius:8px;">
-                                            <a th:href="@{${verifyUrl}}" target="_blank"
+                                        <td bgcolor="#d32f2f" style="background-color:#d32f2f; border-radius:8px;">
+                                            <a th:href="@{${resetUrl}}" target="_blank"
                                                style="display:inline-block; padding:14px 32px; font-family:Helvetica, Arial, sans-serif; font-size:18px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:8px;">
-                                                Verify My Account
+                                                Reset Password
                                             </a>
                                         </td>
                                     </tr>
@@ -72,17 +75,30 @@
                                     If the button above doesn't work, copy and paste this link into your browser:
                                 </p>
                                 <p style="margin:8px 0 0 0; font-size:13px; line-height:1.5; word-break:break-all;">
-                                    <a th:href="@{${verifyUrl}}" th:text="${verifyUrl}" style="color:#2e7d32;">verification link</a>
+                                    <a th:href="@{${resetUrl}}" th:text="${resetUrl}" style="color:#d32f2f;">password reset link</a>
                                 </p>
                             </div>
 
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0 0;">
+                                <tr>
+                                    <td bgcolor="#fff3cd" style="background-color:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:15px; text-align:left;">
+                                        <p style="margin:0; font-size:14px; line-height:1.5; color:#856404;">
+                                            <strong>Important:</strong> This link will expire on <span th:text="${expiresAt}">the expiry date</span>.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
                             <p style="margin:24px 0 0 0; font-size:14px; line-height:1.6; color:#999999;">
-                                If you didn't create an account, you can safely ignore this email.
+                                If you didn't request this, please ignore this email or contact support immediately.
                             </p>
                         </td>
                     </tr>
                     <tr>
                         <td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:20px; text-align:center; font-family:Helvetica, Arial, sans-serif;">
+                            <p style="margin:0 0 6px 0; font-size:12px; color:#999999;">
+                                Sent to <span th:text="${email}">your email</span> on <span th:text="${sentAt}">the send date</span>.
+                            </p>
                             <p style="margin:0; font-size:13px; color:#666666;">&copy; 2026 Garbigo. All rights reserved.</p>
                         </td>
                     </tr>

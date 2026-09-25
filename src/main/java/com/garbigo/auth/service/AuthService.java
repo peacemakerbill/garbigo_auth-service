@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -100,10 +101,11 @@ public class AuthService {
 			token.setUserId(user.getId());
 			token.setToken(verifyToken);
 			token.setType("VERIFICATION");
-			token.setExpiry(System.currentTimeMillis() + 24 * 60 * 60 * 1000);
+			long expiryMillis = System.currentTimeMillis() + 24 * 60 * 60 * 1000;
+			token.setExpiry(expiryMillis);
 			tokenRepository.save(token);
 
-			sendEmailAndRabbitMQAsync(user, verifyToken);
+			sendEmailAndRabbitMQAsync(user, verifyToken, Instant.ofEpochMilli(expiryMillis));
 
 			return new MessageResponse("Your account has been created! Please check your email to verify your account.");
 
@@ -130,12 +132,14 @@ public class AuthService {
 		token.setUserId(user.getId());
 		token.setToken(verifyToken);
 		token.setType("VERIFICATION");
-		token.setExpiry(System.currentTimeMillis() + 24 * 60 * 60 * 1000);
+		long expiryMillis = System.currentTimeMillis() + 24 * 60 * 60 * 1000;
+		token.setExpiry(expiryMillis);
 		tokenRepository.save(token);
 
+		Instant expiresAt = Instant.ofEpochMilli(expiryMillis);
 		CompletableFuture.runAsync(() -> {
 			try {
-				emailService.sendVerificationEmail(user.getEmail(), verifyToken);
+				emailService.sendVerificationEmail(user.getEmail(), displayName(user), verifyToken, expiresAt);
 				System.out.println("Resent verification email to: " + user.getEmail());
 			} catch (MessagingException e) {
 				System.err.println("Failed to resend verification email: " + e.getMessage());
@@ -143,10 +147,14 @@ public class AuthService {
 		});
 	}
 
-	private void sendEmailAndRabbitMQAsync(User user, String verifyToken) {
+	private String displayName(User user) {
+		return (user.getFirstName() != null && !user.getFirstName().isBlank()) ? user.getFirstName() : "there";
+	}
+
+	private void sendEmailAndRabbitMQAsync(User user, String verifyToken, Instant expiresAt) {
 		CompletableFuture.runAsync(() -> {
 			try {
-				emailService.sendVerificationEmail(user.getEmail(), verifyToken);
+				emailService.sendVerificationEmail(user.getEmail(), displayName(user), verifyToken, expiresAt);
 				System.out.println("Verification email sent to: " + user.getEmail());
 			} catch (Exception e) {
 				System.err.println("Failed to send verification email: " + e.getMessage());
@@ -229,12 +237,14 @@ public class AuthService {
 			token.setUserId(user.getId());
 			token.setToken(resetToken);
 			token.setType("RESET");
-			token.setExpiry(System.currentTimeMillis() + 60 * 60 * 1000);
+			long expiryMillis = System.currentTimeMillis() + 60 * 60 * 1000;
+			token.setExpiry(expiryMillis);
 			tokenRepository.save(token);
 
+			Instant expiresAt = Instant.ofEpochMilli(expiryMillis);
 			CompletableFuture.runAsync(() -> {
 				try {
-					emailService.sendResetPasswordEmail(email, resetToken);
+					emailService.sendResetPasswordEmail(email, displayName(user), resetToken, expiresAt);
 				} catch (MessagingException e) {
 					System.err.println("Failed to send reset email: " + e.getMessage());
 				}
