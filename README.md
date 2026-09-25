@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=Garbigo%20Auth%20Service&fontSize=45&fontColor=ffffff&animation=fadeIn&desc=Authentication%20%26%20Identity%20Microservice%20for%20the%20Garbigo%20Platform&descAlignY=62&descSize=18" alt="Garbigo Auth Service banner" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=Garbigo%20Auth%20Service&fontSize=45&fontColor=ffffff&animation=fadeIn&desc=Authentication%20and%20Identity%20Microservice%20for%20the%20Garbigo%20Platform&descAlignY=62&descSize=18" alt="Garbigo Auth Service banner" width="100%"/>
 
 <img src="https://github.com/peacemakerbill.png?size=140" width="140" height="140" style="border-radius:50%;" alt="Author avatar"/>
 
