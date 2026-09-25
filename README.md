@@ -1,13 +1,15 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=Garbigo%20Auth%20Service&fontSize=45&fontColor=ffffff&animation=fadeIn&desc=Authentication%20and%20Identity%20Microservice%20for%20the%20Garbigo%20Platform&descAlignY=62&descSize=18" alt="Garbigo Auth Service banner" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=Garbigo%20Auth%20Service&fontSize=45&fontColor=ffffff&fontAlignY=35&animation=fadeIn&desc=Authentication%20and%20Identity%20Microservice%20for%20the%20Garbigo%20Platform&descAlignY=60&descSize=18" alt="Garbigo Auth Service banner" width="100%"/>
 
 <img src="https://github.com/peacemakerbill.png?size=140" width="140" height="140" style="border-radius:50%;" alt="Author avatar"/>
 
-### Connecting Clients and Waste Collectors Efficiently
+<a href="https://readme-typing-svg.demolab.com/">
+  <img src="https://readme-typing-svg.demolab.com/?font=Orbitron&weight=700&size=26&pause=1000&color=2E7D32&center=true&vCenter=true&width=800&lines=Connecting+Clients+and+Waste+Collectors+Efficiently" alt="Tagline"/>
+</a>
 
 <a href="https://readme-typing-svg.demolab.com/">
-  <img src="https://readme-typing-svg.demolab.com/?font=Fira+Code&weight=500&size=20&pause=1200&color=2E7D32&center=true&vCenter=true&width=700&lines=JWT+Authentication+with+Redis-backed+Revocation;Google+%2F+Facebook+%2F+GitHub+Social+Sign-In;Role-Based+Access+Control+%7C+Rate+Limiting+%7C+Email+Verification;Built+on+Spring+Boot+4.1.1+%2B+Java+21" alt="Typing SVG"/>
+  <img src="https://readme-typing-svg.demolab.com/?font=JetBrains+Mono&weight=500&size=20&pause=1200&color=2E7D32&center=true&vCenter=true&width=700&lines=JWT+Authentication+with+Redis-backed+Revocation;Google+%2F+Facebook+%2F+GitHub+Social+Sign-In;Role-Based+Access+Control+%7C+Rate+Limiting+%7C+Email+Verification;Built+on+Spring+Boot+4.1.1+%2B+Java+21" alt="Typing SVG"/>
 </a>
 
 <br/>
