@@ -63,5 +63,10 @@
     "name": "facebook.app-secret",
     "type": "java.lang.String",
     "description": "Facebook App Secret used to verify Facebook access tokens on sign up / sign in."
+  },
+  {
+    "name": "internal.api-key",
+    "type": "java.lang.String",
+    "description": "Shared secret other microservices send as the X-Internal-Api-Key header on Feign calls into this service."
   }
 ]}

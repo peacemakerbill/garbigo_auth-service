@@ -8,6 +8,9 @@ spring:
   application:
     name: auth-service
 
+  # MongoAutoConfiguration doesn't actually depend on Spring Data, so its connection
+  # properties live at spring.mongodb.* (not spring.data.mongodb.*) as of Spring Boot 4.
+  # Properties that genuinely are Spring Data MongoDB concerns keep the data. prefix.
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/garbigo_auth}
 
@@ -50,6 +53,9 @@ cloudinary:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:2592000}
+
+internal:
+  api-key: ${INTERNAL_API_KEY}
 
 rate-limit:
   requests-per-minute: ${RATE_LIMIT_REQUESTS_PER_MINUTE:20}

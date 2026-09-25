@@ -1,5 +1,6 @@
 package com.garbigo.auth.config;
 
+import com.garbigo.auth.security.InternalApiKeyFilter;
 import com.garbigo.auth.security.JwtFilter;
 import com.garbigo.auth.security.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
@@ -25,8 +26,12 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-    public SecurityConfig(JwtFilter jwtFilter, UserDetailsServiceImpl userDetailsService) {
+    private final InternalApiKeyFilter internalApiKeyFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter, InternalApiKeyFilter internalApiKeyFilter,
+                           UserDetailsServiceImpl userDetailsService) {
         this.jwtFilter = jwtFilter;
+        this.internalApiKeyFilter = internalApiKeyFilter;
     }
 
     @Bean
@@ -97,7 +102,8 @@ public class SecurityConfig {
                 // Catch-all
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(internalApiKeyFilter, JwtFilter.class);
 
         return http.build();
     }
