@@ -325,7 +325,8 @@ All endpoints are prefixed with the service's base URL.
 
 ![Public](https://img.shields.io/badge/-Public-4CAF50?style=flat-square) no token needed &nbsp;&nbsp;
 ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) valid Bearer token required &nbsp;&nbsp;
-![Admin](https://img.shields.io/badge/-Admin-9C27B0?style=flat-square) ADMIN role required
+![Admin](https://img.shields.io/badge/-Admin-9C27B0?style=flat-square) ADMIN role required &nbsp;&nbsp;
+![Internal](https://img.shields.io/badge/-Internal-2196F3?style=flat-square) X-Internal-Api-Key header required, no user token
 
 **Auth** — `/auth`
 
@@ -376,6 +377,14 @@ All endpoints are prefixed with the service's base URL.
 | POST | `/profile-views/{viewedUserId}` | ![Public](https://img.shields.io/badge/-Public-4CAF50?style=flat-square) | Record a view (anonymous if unauthenticated) |
 | GET | `/profile-views/my-stats` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | View statistics for the current user |
 | GET | `/profile-views/who-viewed-me`, `/who-i-viewed` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | View history |
+
+**Internal** — `/internal` (service-to-service only)
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/internal/users` | ![Internal](https://img.shields.io/badge/-Internal-2196F3?style=flat-square) | Full user data (everything except the password hash) for other microservices building a local read model |
+
+`Internal` endpoints authenticate exclusively via an `X-Internal-Api-Key` header matching the shared `INTERNAL_API_KEY` secret — not a user's JWT, and not gated by any business role, even `ADMIN`. See [Security Highlights](#security-highlights).
 
 A ready-to-import Postman collection is included in the repository for quick exploration of every endpoint above.
 

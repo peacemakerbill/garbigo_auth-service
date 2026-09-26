@@ -1,6 +1,7 @@
 package com.garbigo.auth.service;
 
 import com.cloudinary.Cloudinary;
+import com.garbigo.auth.dto.InternalUserDto;
 import com.garbigo.auth.dto.ProfileUpdateDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
@@ -346,5 +347,37 @@ public class UserService {
         return users.stream()
                 .map(u -> modelMapper.map(u, UserDto.class))
                 .collect(Collectors.toList());
+    }
+
+    public List<InternalUserDto> getAllUsersInternal() {
+        return userRepository.findAll().stream()
+                .map(this::toInternalDto)
+                .collect(Collectors.toList());
+    }
+
+    private InternalUserDto toInternalDto(User user) {
+        return new InternalUserDto(
+                user.getId(),
+                user.getDisplayUsername(),
+                user.getFirstName(),
+                user.getMiddleName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getHomeAddress(),
+                user.getProfilePictureUrl(),
+                user.getRole(),
+                user.getWastePreferences(),
+                user.getCollectionSchedule(),
+                user.isVerified(),
+                user.isActive(),
+                user.isArchived(),
+                user.getFollowers(),
+                user.getLikes(),
+                user.getReviews(),
+                user.getLiveLocations(),
+                user.getCreatedAt(),
+                user.getUpdatedAt()
+        );
     }
 }

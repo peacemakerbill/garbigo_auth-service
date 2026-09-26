@@ -99,6 +99,12 @@ public class SecurityConfig {
                 // ====================== ADMIN ONLY (MUST BE AFTER USER RULES) ======================
                 .requestMatchers("/users/**").hasRole("ADMIN")
 
+                // ====================== INTERNAL SERVICE-TO-SERVICE ======================
+                // Gated purely on ROLE_INTERNAL, granted only by InternalApiKeyFilter when a
+                // valid X-Internal-Api-Key header is present - never satisfied by a user's
+                // own JWT, regardless of that user's role.
+                .requestMatchers("/internal/**").hasRole("INTERNAL")
+
                 // Catch-all
                 .anyRequest().authenticated()
             )
