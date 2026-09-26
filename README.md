@@ -2,7 +2,7 @@
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=Garbigo%20Auth%20Service&fontSize=45&fontColor=ffffff&fontAlignY=35&animation=fadeIn&desc=Authentication%20and%20Identity%20Microservice%20for%20the%20Garbigo%20Platform&descAlignY=60&descSize=18" alt="Garbigo Auth Service banner" width="100%"/>
 
-<img src="https://wsrv.nl/?url=github.com/peacemakerbill.png&w=140&h=140&fit=cover&mask=circle" width="140" height="140" alt="Author avatar"/>
+<img src="https://wsrv.nl/?url=github.com/peacemakerbill.png&w=140&h=140&fit=cover&mask=circle&mtrim&mbg=ffffff00" width="140" height="140" alt="Author avatar"/>
 
 <a href="https://readme-typing-svg.demolab.com/">
   <img src="https://readme-typing-svg.demolab.com/?font=Orbitron&weight=700&size=26&pause=1000&color=2E7D32&center=true&vCenter=true&width=800&lines=Connecting+Clients+and+Waste+Collectors+Efficiently" alt="Tagline"/>
@@ -509,7 +509,7 @@ This project is suggested to be licensed under the MIT License — add a `LICENS
 
 <div align="center">
 
-<img src="https://wsrv.nl/?url=github.com/peacemakerbill.png&w=100&h=100&fit=cover&mask=circle" width="100" height="100" alt="peacemakerbill"/>
+<img src="https://wsrv.nl/?url=github.com/peacemakerbill.png&w=100&h=100&fit=cover&mask=circle&mtrim&mbg=ffffff00" width="100" height="100" alt="peacemakerbill"/>
 
 **Bill Graham Peacemaker**
 
