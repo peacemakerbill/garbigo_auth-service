@@ -72,7 +72,7 @@ public class AuthService {
 			}
 
 			if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
-				if (userRepository.findByDisplayUsername(request.getUsername()).isPresent()) {
+				if (!userRepository.findByDisplayUsername(request.getUsername()).isEmpty()) {
 					throw new CustomException("This username is already taken. Please choose a different one.");
 				}
 			}

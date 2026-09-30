@@ -100,7 +100,7 @@ public class UserService {
 
         if (dto.getUsername() != null && !dto.getUsername().trim().isEmpty()
                 && !dto.getUsername().equals(user.getDisplayUsername())) {
-            if (userRepository.findByDisplayUsername(dto.getUsername()).isPresent()) {
+            if (!userRepository.findByDisplayUsername(dto.getUsername()).isEmpty()) {
                 throw new CustomException("This username is already taken.");
             }
             user.setDisplayUsername(dto.getUsername());
@@ -133,7 +133,7 @@ public class UserService {
 
         if (req.getUsername() != null && !req.getUsername().trim().isEmpty()
                 && !req.getUsername().equals(user.getDisplayUsername())) {
-            if (userRepository.findByDisplayUsername(req.getUsername()).isPresent()) {
+            if (!userRepository.findByDisplayUsername(req.getUsername()).isEmpty()) {
                 throw new CustomException("This username is already taken.");
             }
             user.setDisplayUsername(req.getUsername());
@@ -157,7 +157,7 @@ public class UserService {
             }
         }
         if (user.getDisplayUsername() != null && !user.getDisplayUsername().trim().isEmpty()) {
-            if (userRepository.findByDisplayUsername(user.getDisplayUsername()).isPresent()) {
+            if (!userRepository.findByDisplayUsername(user.getDisplayUsername()).isEmpty()) {
                 throw new CustomException("This username is already taken.");
             }
         }
@@ -189,7 +189,7 @@ public class UserService {
         }
 
         if (update.getDisplayUsername() != null && !update.getDisplayUsername().equals(user.getDisplayUsername())) {
-            if (userRepository.findByDisplayUsername(update.getDisplayUsername()).isPresent()) {
+            if (!userRepository.findByDisplayUsername(update.getDisplayUsername()).isEmpty()) {
                 throw new CustomException("This username is already taken.");
             }
             user.setDisplayUsername(update.getDisplayUsername());
