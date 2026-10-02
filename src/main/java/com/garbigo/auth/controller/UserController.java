@@ -1,6 +1,7 @@
 package com.garbigo.auth.controller;
 
 import com.garbigo.auth.dto.LiveLocationResponseDto;
+import com.garbigo.auth.dto.MessageResponse;
 import com.garbigo.auth.dto.ProfileUpdateDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
@@ -209,50 +210,50 @@ public class UserController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
-        return ResponseEntity.ok("User deleted");
+        return ResponseEntity.ok(new MessageResponse("User deleted"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/archive")
-    public ResponseEntity<String> archiveUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> archiveUser(@PathVariable String id) {
         userService.archiveUser(id);
-        return ResponseEntity.ok("User archived");
+        return ResponseEntity.ok(new MessageResponse("User archived"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/unarchive")
-    public ResponseEntity<String> unarchiveUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> unarchiveUser(@PathVariable String id) {
         userService.unarchiveUser(id);
-        return ResponseEntity.ok("User unarchived");
+        return ResponseEntity.ok(new MessageResponse("User unarchived"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/activate")
-    public ResponseEntity<String> activateUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> activateUser(@PathVariable String id) {
         userService.activateUser(id);
-        return ResponseEntity.ok("User activated");
+        return ResponseEntity.ok(new MessageResponse("User activated"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/deactivate")
-    public ResponseEntity<String> deactivateUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> deactivateUser(@PathVariable String id) {
         userService.deactivateUser(id);
-        return ResponseEntity.ok("User deactivated");
+        return ResponseEntity.ok(new MessageResponse("User deactivated"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/verify")
-    public ResponseEntity<String> verifyUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> verifyUser(@PathVariable String id) {
         userService.verifyUser(id);
-        return ResponseEntity.ok("User verified");
+        return ResponseEntity.ok(new MessageResponse("User verified"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/unverify")
-    public ResponseEntity<String> unverifyUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> unverifyUser(@PathVariable String id) {
         userService.unverifyUser(id);
-        return ResponseEntity.ok("User unverified");
+        return ResponseEntity.ok(new MessageResponse("User unverified"));
     }
 }
