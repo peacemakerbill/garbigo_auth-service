@@ -1,5 +1,6 @@
 package com.garbigo.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.garbigo.auth.model.Role;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,6 +10,14 @@ import java.util.List;
 
 @Data
 @AllArgsConstructor
+@JsonPropertyOrder({
+        "id", "username", "firstName", "middleName", "lastName",
+        "email", "phoneNumber", "homeAddress", "profilePictureUrl",
+        "role", "wastePreferences", "collectionSchedule",
+        "verified", "active", "archived",
+        "followers", "likes", "reviews", "liveLocations",
+        "createdAt", "updatedAt"
+})
 public class InternalUserDto {
     private String id;
     private String username;
