@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/users")
@@ -169,14 +168,12 @@ public class UserController {
     // ====================== CLIENT: SEARCH COLLECTORS ======================
     @GetMapping("/collectors")
     public ResponseEntity<List<UserDto>> getCollectors(
-            @RequestParam(required = false) String search) {
-        
-        List<UserDto> allUsers = userService.getAllUsers(search);
-        
-        List<UserDto> collectors = allUsers.stream()
-                .filter(user -> user.getRole() == Role.COLLECTOR)
-                .collect(Collectors.toList());
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean verified,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Boolean archived) {
 
+        List<UserDto> collectors = userService.getAllUsers(search, Role.COLLECTOR, verified, active, archived);
         return ResponseEntity.ok(collectors);
     }
 
@@ -192,8 +189,13 @@ public class UserController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<List<UserDto>> getAllUsers(@RequestParam(required = false) String search) {
-        return ResponseEntity.ok(userService.getAllUsers(search));
+    public ResponseEntity<List<UserDto>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) Boolean verified,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Boolean archived) {
+        return ResponseEntity.ok(userService.getAllUsers(search, role, verified, active, archived));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

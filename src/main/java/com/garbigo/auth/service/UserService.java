@@ -10,11 +10,15 @@ import com.garbigo.auth.model.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.UserRepository;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,13 +29,16 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
     private final AuthService authService;
+    private final MongoTemplate mongoTemplate;
 
     public UserService(UserRepository userRepository, Cloudinary cloudinary,
-                       PasswordEncoder passwordEncoder, AuthService authService, ModelMapper modelMapper) {
+                       PasswordEncoder passwordEncoder, AuthService authService, ModelMapper modelMapper,
+                       MongoTemplate mongoTemplate) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
         this.modelMapper = modelMapper;
+        this.mongoTemplate = mongoTemplate;
     }
 
     public UserDto getCurrentUserDto(String userId) {
@@ -339,12 +346,35 @@ public class UserService {
         return (User) authentication.getPrincipal();
     }
 
-    public List<UserDto> getAllUsers(String search) {
-        List<User> users = search == null || search.isBlank()
-                ? userRepository.findAll()
-                : userRepository.searchUsers(search);
+    public List<UserDto> getAllUsers(String search, Role role, Boolean verified, Boolean active, Boolean archived) {
+        List<Criteria> criteriaList = new ArrayList<>();
 
-        return users.stream()
+        if (search != null && !search.isBlank()) {
+            criteriaList.add(new Criteria().orOperator(
+                    Criteria.where("email").regex(search, "i"),
+                    Criteria.where("firstName").regex(search, "i"),
+                    Criteria.where("lastName").regex(search, "i")
+            ));
+        }
+        if (role != null) {
+            criteriaList.add(Criteria.where("role").is(role));
+        }
+        if (verified != null) {
+            criteriaList.add(Criteria.where("verified").is(verified));
+        }
+        if (active != null) {
+            criteriaList.add(Criteria.where("active").is(active));
+        }
+        if (archived != null) {
+            criteriaList.add(Criteria.where("archived").is(archived));
+        }
+
+        Query query = new Query();
+        if (!criteriaList.isEmpty()) {
+            query.addCriteria(new Criteria().andOperator(criteriaList.toArray(new Criteria[0])));
+        }
+
+        return mongoTemplate.find(query, User.class).stream()
                 .map(u -> modelMapper.map(u, UserDto.class))
                 .collect(Collectors.toList());
     }
