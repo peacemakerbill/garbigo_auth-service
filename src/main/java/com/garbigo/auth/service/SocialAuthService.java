@@ -106,6 +106,11 @@ public class SocialAuthService {
                 throw new CustomException("We couldn't verify your Facebook account. Please try signing in again.");
             }
 
+            if (!facebookAppId.trim().equals(String.valueOf(data.get("app_id")))) {
+                System.err.println("FACEBOOK LOGIN: token was issued for a different app (app_id mismatch)");
+                throw new CustomException("We couldn't verify your Facebook account. Please try signing in again.");
+            }
+
             String userId = (String) data.get("user_id");
             String userInfoUrl = "https://graph.facebook.com/" + userId +
                     "?fields=id,name,email&access_token=" + request.getToken();
@@ -116,6 +121,11 @@ public class SocialAuthService {
 
             String email = (String) userInfo.get("email");
             String name = (String) userInfo.get("name");
+
+            if (email == null || email.isBlank()) {
+                throw new CustomException("Your Facebook account didn't share an email address. Please add "
+                        + "an email to your Facebook account and allow email access, or sign up with email instead.");
+            }
 
             User user = findOrCreateSocialUser(email, name != null ? name : "Facebook User");
             user.setVerified(true);
@@ -194,6 +204,7 @@ public class SocialAuthService {
         String accessToken = tokenBody != null ? (String) tokenBody.get("access_token") : null;
 
         if (accessToken == null) {
+            System.err.println("GITHUB LOGIN: code exchange failed: " + tokenBody);
             throw new CustomException("We couldn't sign you in with GitHub. Please try again.");
         }
 
