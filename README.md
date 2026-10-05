@@ -2,7 +2,7 @@
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=Garbigo%20Auth%20Service&fontSize=45&fontColor=ffffff&fontAlignY=35&animation=fadeIn&desc=Authentication%20and%20Identity%20Microservice%20for%20the%20Garbigo%20Platform&descAlignY=60&descSize=18" alt="Garbigo Auth Service banner" width="100%"/>
 
-<img src="https://wsrv.nl/?url=avatars.githubusercontent.com/peacemakerbill&w=140&h=140&fit=cover&mask=circle&maxage=7d" width="140" height="140" alt="Author avatar"/>
+<img src="https://wsrv.nl/?url=github.com/peacemakerbill.png&w=140&h=140&fit=cover&mask=circle&mtrim&mbg=ffffff00" width="140" height="140" alt="Author avatar"/>
 
 <a href="https://readme-typing-svg.demolab.com/">
   <img src="https://readme-typing-svg.demolab.com/?font=Orbitron&weight=700&size=26&pause=1000&color=2E7D32&center=true&vCenter=true&width=800&lines=Connecting+Clients+and+Waste+Collectors+Efficiently" alt="Tagline"/>
@@ -61,6 +61,10 @@
 - [API Reference](#api-reference)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
+- [Social Login Setup](#social-login-setup)
+  - [Google Setup and Testing](#google-setup-and-testing)
+  - [Facebook Setup and Testing](#facebook-setup-and-testing)
+  - [GitHub Setup and Testing](#github-setup-and-testing)
 - [Project Structure](#project-structure)
 - [Security Highlights](#security-highlights)
 - [Roadmap](#roadmap)
@@ -439,9 +443,137 @@ Configuration is loaded from `.env` at startup (via `spring.config.import`), fal
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | Per-client request cap |
 | `SERVER_PORT` | HTTP port |
 | `APP_URL` | Base URL used to build links in emails |
-| `GOOGLE_CLIENT_ID` | Google Sign-In |
+| `GOOGLE_CLIENT_ID` | Google Sign-In (ID token verification, no client secret needed) |
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Facebook Login |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth |
+| `INTERNAL_API_KEY` | Shared secret other microservices send in the `X-Internal-Api-Key` header |
+
+<br/>
+
+## Social Login Setup
+
+Google, Facebook, and GitHub all follow the same pattern. Sign up and sign in are a single request: the client obtains a credential from the provider and posts it to this service, which verifies it with the provider and returns its own JWT.
+
+| Provider | Endpoint | What the client sends as `token` | Backend `.env` values |
+|---|---|---|---|
+| Google | `POST /auth/social/google` | Google ID token (a JWT from Google Identity Services) | `GOOGLE_CLIENT_ID` only. No client secret is needed, because ID tokens are verified against Google's public keys. |
+| Facebook | `POST /auth/social/facebook` | Facebook user access token with the `email` permission | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` |
+| GitHub | `POST /auth/social/github` | One-time OAuth `code` | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+
+Request body, the same for all three:
+
+```json
+{ "token": "<credential from the provider>" }
+```
+
+Successful response:
+
+```json
+{
+    "token": "<this service's JWT>",
+    "role": "CLIENT",
+    "expiresAt": "2026-11-04T22:27:38.539070694Z"
+}
+```
+
+How accounts are matched:
+
+- An email with no account yet creates a new `CLIENT` account, marked verified, with no password.
+- An email that already has an account signs in to that account. If that account was unverified, it becomes verified.
+- Facebook and GitHub accounts must expose an email address. Without one, the request fails with a message asking the person to add one, and no account is created.
+
+### Google Setup and Testing
+
+**Google Cloud Console**
+
+1. Open APIs and Services, then Credentials, and create an OAuth client with application type **Web application**. Other types (Android, iOS, Desktop) have no JavaScript origins and fail with `invalid_client`.
+2. Under **Authorized JavaScript origins**, add `http://localhost:3000` and `http://localhost`. Enter them exactly, with no trailing slash and no path. Leave **Authorized redirect URIs** empty. Changes can take a few minutes to apply.
+3. On the OAuth consent screen, fill in the app name, support email, and developer contact email. While the publishing status is **Testing**, add each Google account you will sign in with under **Test users**.
+4. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) into `GOOGLE_CLIENT_ID` in `.env`, then restart the service.
+
+**Testing with the test page**
+
+`google-test/google-signin-test.html` gets a real Google ID token, shows its decoded claims, and posts it to this service.
+
+1. Start the auth service.
+2. Serve only the test folder:
+   ```bash
+   cd google-test
+   python3 -m http.server 3000 --bind 127.0.0.1
+   ```
+   Never start this server from the project root, because a static file server would expose `.env`.
+3. Open `http://localhost:3000/google-signin-test.html`. Do not open the file directly, because Google rejects `file://` origins.
+4. Paste your Client ID, click **Load Google button**, and sign in. Check that the page reports that `aud` matches, then click **POST to /auth/social/google**.
+5. The first call creates the account. Calling again, with the same token (valid for about an hour) or a fresh one, signs in to the same account without creating a duplicate.
+
+**Troubleshooting**
+
+| What you see | Cause |
+|---|---|
+| Popup shows `invalid_request` with `origin=file://` | The page was opened as a local file. Serve it over `http://localhost:3000` as above. |
+| Popup shows `invalid_client` with "no registered origin" | The OAuth client has no Authorized JavaScript origins, or it is not a Web application client. |
+| Popup shows a plain `400` saying the request is malformed | The value entered is not a Google client ID. It should end in `.apps.googleusercontent.com`. |
+| Popup shows `access_denied` | The consent screen is in Testing and your account is not listed under Test users. |
+| `400` "We couldn't verify your Google account" | The ID token failed verification: it expired, was issued for a different client ID than `GOOGLE_CLIENT_ID`, or is an access token instead of an ID token. The service console prints the reason. |
+
+### Facebook Setup and Testing
+
+**Meta for Developers**
+
+1. Create an app with the Facebook Login product, or use your existing app. From App settings, then Basic, copy the **App ID** and **App Secret** into `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in `.env`, then restart the service.
+2. While the app is in **Development** mode, only accounts with a role on the app (administrator, developer, or tester) can log in. Add your test account under App roles.
+3. The login must request the `email` permission. Facebook does not guarantee an email address, and accounts without one are rejected with a message asking the person to add one and allow email access.
+
+**Testing with the Graph API Explorer**
+
+1. Open the Graph API Explorer at `developers.facebook.com/tools/explorer` and pick your app under **Meta App**. It must be the same app as `FACEBOOK_APP_ID`: the service checks the `app_id` Facebook reports for the token and rejects tokens issued to any other app.
+2. Generate a **User Access Token** with the `email` permission.
+3. Send it:
+   ```
+   POST {{base_url}}/auth/social/facebook
+   { "token": "<user access token>" }
+   ```
+4. The first call creates the account. Calling again with the same Facebook account signs in to it.
+
+**Troubleshooting**
+
+| What you see | Cause |
+|---|---|
+| `400` "We couldn't verify your Facebook account" | The token is invalid or expired, or was issued to a different app than `FACEBOOK_APP_ID`. In the second case the service console prints `FACEBOOK LOGIN: token was issued for a different app`. |
+| `400` "Your Facebook account didn't share an email address" | The account has no email, or the `email` permission was not granted. |
+| Facebook blocks the login dialog | The app is in Development mode and the account has no role on it. |
+
+### GitHub Setup and Testing
+
+GitHub never hands the client a ready-made token. It gives a short-lived `code`, and exchanging that for an access token requires the client secret, so the exchange happens inside this service.
+
+**GitHub OAuth App**
+
+1. Open Settings, then Developer settings, then OAuth Apps, and create a new OAuth App.
+2. Set **Authorization callback URL** to `http://localhost:3000/callback` for local testing. The page does not need to exist. A real client app would use its own callback URL.
+3. Copy the **Client ID** into `GITHUB_CLIENT_ID`, generate a **Client secret** and copy it into `GITHUB_CLIENT_SECRET`, then restart the service.
+
+**Testing in the browser and Postman**
+
+1. Open this in a browser, with your own client ID:
+   ```
+   https://github.com/login/oauth/authorize?client_id=YOUR_GITHUB_CLIENT_ID&scope=user:email
+   ```
+2. Approve. The browser lands on `http://localhost:3000/callback?code=...`. The page itself may show a 404, which is fine. Copy the value after `code=` from the address bar.
+3. Within 10 minutes, send it:
+   ```
+   POST {{base_url}}/auth/social/github
+   { "token": "<the code>" }
+   ```
+
+Each code works once. For a second login, repeat these steps to get a fresh code. Keep `scope=user:email` in the URL, which lets accounts with a private email address sign in.
+
+**Troubleshooting**
+
+| What you see | Cause |
+|---|---|
+| `400` "We couldn't sign you in with GitHub" | The code exchange failed. The service console prints `GITHUB LOGIN: code exchange failed:` followed by GitHub's own error, such as `bad_verification_code` (code reused or expired) or `incorrect_client_credentials` (wrong client ID or secret). |
+| `400` "Your GitHub account needs a verified email address" | The account has no verified email, or `user:email` was missing from the authorize URL. |
 
 <br/>
 
@@ -509,7 +641,7 @@ This project is suggested to be licensed under the MIT License — add a `LICENS
 
 <div align="center">
 
-<img src="https://wsrv.nl/?url=avatars.githubusercontent.com/peacemakerbill&w=100&h=100&fit=cover&mask=circle&maxage=7d" width="100" height="100" alt="peacemakerbill"/>
+<img src="https://wsrv.nl/?url=github.com/peacemakerbill.png&w=100&h=100&fit=cover&mask=circle&mtrim&mbg=ffffff00" width="100" height="100" alt="peacemakerbill"/>
 
 **Bill Graham Peacemaker**
 

@@ -27,6 +27,7 @@
 <div class="card">
     <h1>Google Sign-In Test</h1>
     <p class="sub">Gets a real Google ID token, shows what is inside it, and sends it to your auth service.</p>
+    <div id="originInfo" style="margin-bottom: 8px; font-size: 13px;"></div>
 
     <label for="clientId">Google Client ID (same value as GOOGLE_CLIENT_ID in your .env)</label>
     <input type="text" id="clientId" placeholder="123456789-abc.apps.googleusercontent.com">
@@ -102,9 +103,17 @@
     }
 
     document.getElementById('loadBtn').addEventListener('click', function () {
+        if (location.protocol === 'file:') {
+            output.textContent = 'This page is open as a local file. Google sign-in only works from a real origin. Run python3 -m http.server 3000 in this folder and open http://localhost:3000/google-signin-test.html';
+            return;
+        }
         const clientId = clientIdInput.value.trim();
         if (!clientId) {
             output.textContent = 'Enter your Google Client ID first.';
+            return;
+        }
+        if (!/\.apps\.googleusercontent\.com$/.test(clientId)) {
+            output.textContent = 'That does not look like a Google client ID. Google client IDs end with .apps.googleusercontent.com. Copy it from Google Cloud Console under APIs & Services, Credentials, your Web application OAuth client.';
             return;
         }
         if (typeof google === 'undefined' || !google.accounts) {
@@ -148,6 +157,16 @@
             output.textContent = 'Request failed: ' + e.message + '\n\nIs the auth service running? You can also copy the ID token above and send it from Postman.';
         }
     });
+
+    (function showOrigin() {
+        const el = document.getElementById('originInfo');
+        if (location.protocol === 'file:') {
+            el.className = 'bad';
+            el.textContent = 'This page is open as a local file, so Google sign-in will not work. Run python3 -m http.server 3000 in this folder, then open http://localhost:3000/google-signin-test.html';
+        } else {
+            el.textContent = 'Origin Google will see: ' + location.origin + ' (it must be listed under Authorized JavaScript origins for your client)';
+        }
+    })();
 </script>
 </body>
 </html>
