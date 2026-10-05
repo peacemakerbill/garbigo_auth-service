@@ -67,6 +67,8 @@ public class SocialAuthService {
 
             GoogleIdToken idToken = verifier.verify(request.getToken());
             if (idToken == null) {
+                System.err.println("GOOGLE LOGIN: ID token failed verification (bad signature, expired, "
+                        + "wrong token type, or audience does not match GOOGLE_CLIENT_ID)");
                 throw new CustomException("We couldn't verify your Google account. Please try signing in again.");
             }
 
@@ -82,6 +84,8 @@ public class SocialAuthService {
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
+            System.err.println("GOOGLE LOGIN ERROR: " + e.getMessage());
+            e.printStackTrace();
             throw new CustomException("We couldn't sign you in with Google. Please try again.");
         }
     }
@@ -121,6 +125,8 @@ public class SocialAuthService {
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
+            System.err.println("FACEBOOK LOGIN ERROR: " + e.getMessage());
+            e.printStackTrace();
             throw new CustomException("We couldn't sign you in with Facebook. Please try again.");
         }
     }
@@ -163,6 +169,8 @@ public class SocialAuthService {
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
+            System.err.println("GITHUB LOGIN ERROR: " + e.getMessage());
+            e.printStackTrace();
             throw new CustomException("We couldn't sign you in with GitHub. Please try again.");
         }
     }
