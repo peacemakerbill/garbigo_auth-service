@@ -65,6 +65,7 @@
   - [Google Setup and Testing](#google-setup-and-testing)
   - [Facebook Setup and Testing](#facebook-setup-and-testing)
   - [GitHub Setup and Testing](#github-setup-and-testing)
+  - [Verifying a Social Login](#verifying-a-social-login)
 - [Project Structure](#project-structure)
 - [Security Highlights](#security-highlights)
 - [Roadmap](#roadmap)
@@ -452,7 +453,7 @@ Configuration is loaded from `.env` at startup (via `spring.config.import`), fal
 
 ## Social Login Setup
 
-Google, Facebook, and GitHub all follow the same pattern. Sign up and sign in are a single request: the client obtains a credential from the provider and posts it to this service, which verifies it with the provider and returns its own JWT.
+Google, Facebook, and GitHub all follow the same pattern. Sign up and sign in are a single request: the client obtains a credential from the provider and posts it to this service, which verifies it with the provider and returns its own JWT. There is no separate registration step and no password involved.
 
 | Provider | Endpoint | What the client sends as `token` | Backend `.env` values |
 |---|---|---|---|
@@ -460,7 +461,7 @@ Google, Facebook, and GitHub all follow the same pattern. Sign up and sign in ar
 | Facebook | `POST /auth/social/facebook` | Facebook user access token with the `email` permission | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` |
 | GitHub | `POST /auth/social/github` | One-time OAuth `code` | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
 
-Request body, the same for all three:
+All three endpoints are public (no `Authorization` header needed). Request body, the same for all three:
 
 ```json
 { "token": "<credential from the provider>" }
@@ -476,11 +477,22 @@ Successful response:
 }
 ```
 
+The returned JWT is the same kind of token that `POST /auth/login` returns, so it works with every protected endpoint and with `POST /auth/logout`.
+
 How accounts are matched:
 
-- An email with no account yet creates a new `CLIENT` account, marked verified, with no password.
-- An email that already has an account signs in to that account. If that account was unverified, it becomes verified.
+- An email with no account yet creates a new `CLIENT` account, marked verified, with no password. The provider's display name is split so the first word becomes `firstName` and the last word becomes `lastName`. A single-word name fills `firstName` only.
+- An email that already has an account signs in to that account, whether it was created by password or by another provider. If that account was unverified, it becomes verified.
 - Facebook and GitHub accounts must expose an email address. Without one, the request fails with a message asking the person to add one, and no account is created.
+- The email is the identity. Signing in with Google and later with GitHub using the same email reaches the same account.
+
+Common error responses, the same shape as the rest of the API:
+
+```json
+{ "message": "We couldn't sign you in with GitHub. Please try again." }
+```
+
+When a login fails, the real reason is printed in the service console under a tag such as `GOOGLE LOGIN`, `FACEBOOK LOGIN`, or `GITHUB LOGIN`. Clients only ever see the friendly message.
 
 ### Google Setup and Testing
 
@@ -506,6 +518,8 @@ How accounts are matched:
 4. Paste your Client ID, click **Load Google button**, and sign in. Check that the page reports that `aud` matches, then click **POST to /auth/social/google**.
 5. The first call creates the account. Calling again, with the same token (valid for about an hour) or a fresh one, signs in to the same account without creating a duplicate.
 
+To test from Postman instead, copy the `credential` value the test page displays and send it as `token`.
+
 **Troubleshooting**
 
 | What you see | Cause |
@@ -520,37 +534,50 @@ How accounts are matched:
 
 **Meta for Developers**
 
-1. Create an app with the Facebook Login product, or use your existing app. From App settings, then Basic, copy the **App ID** and **App Secret** into `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in `.env`, then restart the service.
-2. While the app is in **Development** mode, only accounts with a role on the app (administrator, developer, or tester) can log in. Add your test account under App roles.
-3. The login must request the `email` permission. Facebook does not guarantee an email address, and accounts without one are rejected with a message asking the person to add one and allow email access.
+1. Create an app, or use your existing one. When asked for a use case, choose **Authenticate and request data from users with Facebook Login**.
+2. From App settings, then Basic, copy the **App ID** and **App Secret** into `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in `.env`, then restart the service.
+3. Add the email permission. Open Use cases, click **Customize** on the Facebook Login use case, then under **Permissions and features** add `email`. Meta does not add it for you, and without it every token carries only `public_profile`, which contains no email address.
+4. While the app is in **Development** mode, only accounts with a role on the app (administrator, developer, or tester) can log in. Add your test account under App roles. Going live for the public requires Meta app review for the `email` permission.
 
 **Testing with the Graph API Explorer**
 
+There is no browser test page for Facebook, because the Facebook JavaScript SDK only allows login from `https` pages. The Graph API Explorer is the quickest way to get a real token.
+
 1. Open the Graph API Explorer at `developers.facebook.com/tools/explorer` and pick your app under **Meta App**. It must be the same app as `FACEBOOK_APP_ID`: the service checks the `app_id` Facebook reports for the token and rejects tokens issued to any other app.
-2. Generate a **User Access Token** with the `email` permission.
-3. Send it:
+2. Under **Permissions**, add `email` and `public_profile`, then click **Generate Access Token** and approve the dialog.
+3. Before using the token, confirm it with the Access Token Debugger at `developers.facebook.com/tools/debug/accesstoken`. Check that:
+   - **App ID** equals your `FACEBOOK_APP_ID`.
+   - **Scopes** lists `email` as well as `public_profile`.
+   - **Expires** is in the future. User tokens last about an hour.
+4. Confirm Facebook actually returns an email by running this in the Explorer:
+   ```
+   me?fields=id,name,email
+   ```
+   If the response has no `email`, the account has no email on Facebook, or the permission was not granted. Fix that first, because the service will reject the token for the same reason.
+5. Send the token:
    ```
    POST {{base_url}}/auth/social/facebook
    { "token": "<user access token>" }
    ```
-4. The first call creates the account. Calling again with the same Facebook account signs in to it.
+6. The first call creates the account. Calling again with the same Facebook account signs in to it. After adding a permission, always generate a new token, because old tokens keep the permissions they were issued with.
 
 **Troubleshooting**
 
 | What you see | Cause |
 |---|---|
 | `400` "We couldn't verify your Facebook account" | The token is invalid or expired, or was issued to a different app than `FACEBOOK_APP_ID`. In the second case the service console prints `FACEBOOK LOGIN: token was issued for a different app`. |
-| `400` "Your Facebook account didn't share an email address" | The account has no email, or the `email` permission was not granted. |
+| `400` "Your Facebook account didn't share an email address" | The `email` permission is missing from the app's use case or from the token (Scopes shows only `public_profile`), or the Facebook account has no email. Add the permission, generate a new token, and try again. |
 | Facebook blocks the login dialog | The app is in Development mode and the account has no role on it. |
+| Explorer shows a different app than expected | The **Meta App** dropdown is set to another app. Switch it and generate a new token. |
 
 ### GitHub Setup and Testing
 
-GitHub never hands the client a ready-made token. It gives a short-lived `code`, and exchanging that for an access token requires the client secret, so the exchange happens inside this service.
+GitHub never hands the client a ready-made token. It gives a short-lived `code`, and exchanging that for an access token requires the client secret, so the exchange happens inside this service. The client secret never leaves the backend.
 
 **GitHub OAuth App**
 
 1. Open Settings, then Developer settings, then OAuth Apps, and create a new OAuth App.
-2. Set **Authorization callback URL** to `http://localhost:3000/callback` for local testing. The page does not need to exist. A real client app would use its own callback URL.
+2. Set **Authorization callback URL** to any URL you control. For local testing `http://localhost:3000/callback` or even `http://localhost:8080/login/oauth2/code/github` both work. The page does not need to exist, because all you need from it is the `code` in the address bar. A real client app would use its own callback URL and send the code to this service.
 3. Copy the **Client ID** into `GITHUB_CLIENT_ID`, generate a **Client secret** and copy it into `GITHUB_CLIENT_SECRET`, then restart the service.
 
 **Testing in the browser and Postman**
@@ -559,14 +586,18 @@ GitHub never hands the client a ready-made token. It gives a short-lived `code`,
    ```
    https://github.com/login/oauth/authorize?client_id=YOUR_GITHUB_CLIENT_ID&scope=user:email
    ```
-2. Approve. The browser lands on `http://localhost:3000/callback?code=...`. The page itself may show a 404, which is fine. Copy the value after `code=` from the address bar.
+2. Approve. The browser lands on your callback URL with the code in the address bar, for example:
+   ```
+   http://localhost:8080/login/oauth2/code/github?code=a1b2c3d4e5f6a7b8c9d0&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth
+   ```
+   The page itself may show a 403 or 404. That is expected and harmless. Copy only the value between `code=` and `&iss=`. If there is no `&iss=`, copy everything after `code=`.
 3. Within 10 minutes, send it:
    ```
    POST {{base_url}}/auth/social/github
    { "token": "<the code>" }
    ```
 
-Each code works once. For a second login, repeat these steps to get a fresh code. Keep `scope=user:email` in the URL, which lets accounts with a private email address sign in.
+Each code works once. For a second login, repeat these steps to get a fresh code. Keep `scope=user:email` in the URL, which lets accounts with a private email address sign in: the service falls back to GitHub's `/user/emails` list and picks the primary verified address.
 
 **Troubleshooting**
 
@@ -574,6 +605,43 @@ Each code works once. For a second login, repeat these steps to get a fresh code
 |---|---|
 | `400` "We couldn't sign you in with GitHub" | The code exchange failed. The service console prints `GITHUB LOGIN: code exchange failed:` followed by GitHub's own error, such as `bad_verification_code` (code reused or expired) or `incorrect_client_credentials` (wrong client ID or secret). |
 | `400` "Your GitHub account needs a verified email address" | The account has no verified email, or `user:email` was missing from the authorize URL. |
+| Callback page shows 403 or 404 | Expected. Nothing handles that path. Copy the code from the address bar. |
+| Code copied with extra text such as `&iss=...` | Only the value after `code=` and before the next `&` is the code. |
+
+### Verifying a Social Login
+
+After any successful social login, check the result the same way for all three providers.
+
+1. Call a protected endpoint with the returned token:
+   ```
+   GET {{base_url}}/users/profile
+   Authorization: Bearer <token>
+   ```
+   The profile should show the provider's name, the email, `verified: true`, and role `CLIENT`.
+2. Check the stored document in MongoDB:
+   ```js
+   db.users.findOne({ email: "you@example.com" }, { password: 1, verified: 1, role: 1, firstName: 1, lastName: 1 })
+   ```
+   Social-only accounts have no `password` field, `verified` is `true`, and `role` is `CLIENT`.
+3. Repeat the login and confirm that no second document appears for the same email:
+   ```js
+   db.users.countDocuments({ email: "you@example.com" })
+   ```
+   The count must stay at `1`.
+
+**Test checklist for each provider**
+
+| Case | Expected result |
+|---|---|
+| First login with a new email | `200`, account created, token returned |
+| Second login with the same account | `200`, same account, no duplicate |
+| Login with an email that already registered by password | `200`, signs in to the existing account and marks it verified |
+| Garbage token such as `abc` | `400` with a friendly "We couldn't verify your account" or "We couldn't sign you in" message, no stack trace in the response |
+| Expired or reused credential | `400` with the same friendly message |
+| Provider account with no email (Facebook and GitHub) | `400` asking the person to add an email, no account created |
+| Returned token on `POST /auth/logout` | Token is revoked and can no longer be used |
+
+A social-only account has no password. To let that person also sign in with email and password, they use the forgot password flow, which sets one.
 
 <br/>
 
