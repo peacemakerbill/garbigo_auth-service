@@ -62,6 +62,7 @@
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Social Login Setup](#social-login-setup)
+  - [The Test Console](#the-test-console)
   - [Google Setup and Testing](#google-setup-and-testing)
   - [Facebook Setup and Testing](#facebook-setup-and-testing)
   - [GitHub Setup and Testing](#github-setup-and-testing)
@@ -494,6 +495,36 @@ Common error responses, the same shape as the rest of the API:
 
 When a login fails, the real reason is printed in the service console under a tag such as `GOOGLE LOGIN`, `FACEBOOK LOGIN`, or `GITHUB LOGIN`. Clients only ever see the friendly message.
 
+### The Test Console
+
+`google-test/social-login-test.html` is a single page that exercises all three providers. It needs no build step and no dependencies, and it never sees a client secret.
+
+What it does:
+
+- Runs the Google, Facebook, or GitHub login and shows each step as it happens: approve, provider token, Garbigo checks it, Garbigo JWT.
+- **Sign in with Garbigo** mode posts the provider token to the matching `/auth/social/...` endpoint and shows the JWT, its role and expiry, and a button for `GET /users/profile` and `POST /auth/logout`.
+- **Get the token only** mode keeps the provider token on the page, with a copy button for the token, the request body, and the URL, so it can be sent from Postman.
+- Logs every request and response, with errors shown exactly as the service returns them.
+
+Run it:
+
+1. Start the auth service.
+2. Serve only the test folder:
+   ```bash
+   cd google-test
+   python3 -m http.server 3000 --bind 127.0.0.1
+   ```
+   Never start this server from the project root, because a static file server would expose `.env`.
+3. Open `http://localhost:3000/social-login-test.html`. Do not open the file directly, because every provider rejects `file://` origins.
+4. Open **Configuration** in the sidebar and enter the backend URL (`http://localhost:8080`), the Google client ID, the Facebook app ID, and the GitHub client ID. These are public identifiers. Never enter a client secret or app secret. Click **Save and reload**.
+5. For GitHub, copy the callback URL shown in Configuration into your GitHub OAuth App as the **Authorization callback URL**. It is `http://localhost:3000/social-login-test.html`.
+
+Provider notes:
+
+- **Google** works as soon as the client ID and authorized origins are set up (see the Google section below).
+- **GitHub** redirects to GitHub and returns to the same page, which reads the code itself. There is nothing to copy by hand.
+- **Facebook** only allows its login popup from https pages. Over `http://localhost`, create a token in the Graph API Explorer and paste it into the Facebook card on the page.
+
 ### Google Setup and Testing
 
 **Google Cloud Console**
@@ -503,22 +534,16 @@ When a login fails, the real reason is printed in the service console under a ta
 3. On the OAuth consent screen, fill in the app name, support email, and developer contact email. While the publishing status is **Testing**, add each Google account you will sign in with under **Test users**.
 4. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) into `GOOGLE_CLIENT_ID` in `.env`, then restart the service.
 
-**Testing with the test page**
+**Testing with the test console**
 
-`google-test/google-signin-test.html` gets a real Google ID token, shows its decoded claims, and posts it to this service.
+The Test Console gets a real Google ID token, decodes its claims, and posts it to this service.
 
-1. Start the auth service.
-2. Serve only the test folder:
-   ```bash
-   cd google-test
-   python3 -m http.server 3000 --bind 127.0.0.1
-   ```
-   Never start this server from the project root, because a static file server would expose `.env`.
-3. Open `http://localhost:3000/google-signin-test.html`. Do not open the file directly, because Google rejects `file://` origins.
-4. Paste your Client ID, click **Load Google button**, and sign in. Check that the page reports that `aud` matches, then click **POST to /auth/social/google**.
-5. The first call creates the account. Calling again, with the same token (valid for about an hour) or a fresh one, signs in to the same account without creating a duplicate.
+1. Set up the Test Console as described above, with your Google client ID saved in Configuration.
+2. Click **Continue with Google** and sign in. In token only mode the ID token is shown on the page.
+3. In sign in mode the page posts it to `/auth/social/google` and shows the JWT.
+4. The first call creates the account. Calling again, with the same token (valid for about an hour) or a fresh one, signs in to the same account without creating a duplicate.
 
-To test from Postman instead, copy the `credential` value the test page displays and send it as `token`.
+To test from Postman instead, switch the console to **Get the token only**, click the Google button, and copy the request body it shows.
 
 **Troubleshooting**
 
@@ -541,7 +566,7 @@ To test from Postman instead, copy the `credential` value the test page displays
 
 **Testing with the Graph API Explorer**
 
-There is no browser test page for Facebook, because the Facebook JavaScript SDK only allows login from `https` pages. The Graph API Explorer is the quickest way to get a real token.
+The Facebook JavaScript SDK only allows its login popup from `https` pages, so the Test Console's Facebook button does not work over `http://localhost`. The Graph API Explorer is the quickest way to get a real token. You can paste that token into the Facebook card on the Test Console, or send it from Postman.
 
 1. Open the Graph API Explorer at `developers.facebook.com/tools/explorer` and pick your app under **Meta App**. It must be the same app as `FACEBOOK_APP_ID`: the service checks the `app_id` Facebook reports for the token and rejects tokens issued to any other app.
 2. Under **Permissions**, add `email` and `public_profile`, then click **Generate Access Token** and approve the dialog.
@@ -581,6 +606,8 @@ GitHub never hands the client a ready-made token. It gives a short-lived `code`,
 3. Copy the **Client ID** into `GITHUB_CLIENT_ID`, generate a **Client secret** and copy it into `GITHUB_CLIENT_SECRET`, then restart the service.
 
 **Testing in the browser and Postman**
+
+The quickest way is the Test Console: set the GitHub callback URL to `http://localhost:3000/social-login-test.html`, click **Continue with GitHub**, and the page handles the code. The manual steps below work with any callback URL.
 
 1. Open this in a browser, with your own client ID:
    ```
