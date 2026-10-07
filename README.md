@@ -497,7 +497,7 @@ When a login fails, the real reason is printed in the service console under a ta
 
 ### The Test Console
 
-`google-test/social-login-test.html` is a single page that exercises all three providers. It needs no build step and no dependencies, and it never sees a client secret.
+`oauth-test/social-login-test.html` is a single page that exercises all three providers. It needs no build step and no dependencies, and it never sees a client secret.
 
 What it does:
 
@@ -511,7 +511,7 @@ Run it:
 1. Start the auth service.
 2. Serve only the test folder:
    ```bash
-   cd google-test
+   cd oauth-test
    python3 -m http.server 3000 --bind 127.0.0.1
    ```
    Never start this server from the project root, because a static file server would expose `.env`.
