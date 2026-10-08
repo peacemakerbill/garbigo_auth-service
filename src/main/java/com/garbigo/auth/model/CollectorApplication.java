@@ -35,14 +35,18 @@ public class CollectorApplication {
     @Indexed
     private ApplicationStatus status = ApplicationStatus.DRAFT;
 
-    private String nationalIdNumber;
-    private String kraPin;
+    private IdentityDocumentType idType;
+    private String idNumber;
+    private String taxId;
     private LocalDate dateOfBirth;
     private String alternatePhone;
 
-    private String county;
-    private String subCounty;
+    private String countryCode;
+    private String region;
+    private String city;
+    private String postalCode;
     private String physicalAddress;
+    private String timeZone;
 
     private Set<ServiceType> serviceTypes = new LinkedHashSet<>();
     private VehicleType vehicleType;
@@ -63,7 +67,10 @@ public class CollectorApplication {
     private List<String> languages = new ArrayList<>();
     private String motivation;
 
-    private String mpesaNumber;
+    private PayoutMethod payoutMethod;
+    private String payoutProvider;
+    private String payoutAccountNumber;
+    private String payoutAccountName;
 
     private EmergencyContact emergencyContact;
     private List<Reference> references = new ArrayList<>();

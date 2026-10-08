@@ -35,12 +35,12 @@ public final class ApplicationReadiness {
         }
         Checker c = new Checker();
 
-        c.check("Personal details", "Add your National ID number", filled(app.getNationalIdNumber()));
-        c.check("Personal details", "Add your KRA PIN", filled(app.getKraPin()));
+        c.check("Personal details", "Choose the type of ID you will use", app.getIdType() != null);
+        c.check("Personal details", "Add your ID number", filled(app.getIdNumber()));
         c.check("Personal details", "Add your date of birth", app.getDateOfBirth() != null);
 
-        c.check("Where you live", "Choose your county", filled(app.getCounty()));
-        c.check("Where you live", "Add your sub-county or estate", filled(app.getSubCounty()));
+        c.check("Where you live", "Choose your country", filled(app.getCountryCode()));
+        c.check("Where you live", "Add your city or town", filled(app.getCity()));
         c.check("Where you live", "Add your physical address", filled(app.getPhysicalAddress()));
 
         boolean motorized = app.getVehicleType() != null && app.getVehicleType().motorized();
@@ -60,7 +60,10 @@ public final class ApplicationReadiness {
         c.check("Availability", "Add your years of experience (enter 0 if you are new)",
                 app.getYearsOfExperience() != null);
 
-        c.check("Payout", "Add your M-Pesa number for payouts", filled(app.getMpesaNumber()));
+        c.check("Payout", "Choose how you want to be paid", app.getPayoutMethod() != null);
+        c.check("Payout", "Add the name of your bank, wallet or mobile money provider", filled(app.getPayoutProvider()));
+        c.check("Payout", "Add your account or mobile money number", filled(app.getPayoutAccountNumber()));
+        c.check("Payout", "Add the name on the account", filled(app.getPayoutAccountName()));
 
         var ec = app.getEmergencyContact();
         c.check("Emergency contact", "Add an emergency contact with name, relationship and phone",
@@ -70,7 +73,7 @@ public final class ApplicationReadiness {
         c.check("Agreements", "Agree to the background check", Boolean.TRUE.equals(app.getConsentToBackgroundCheck()));
         c.check("Agreements", "Confirm that your information is true", Boolean.TRUE.equals(app.getConfirmsInfoIsTrue()));
 
-        for (var rule : DocumentRequirementRules.forApplication(app.getVehicleType(), app.getServiceTypes())) {
+        for (var rule : DocumentRequirementRules.forApplication(app.getVehicleType(), app.getServiceTypes(), app.getIdType())) {
             if (!rule.required()) {
                 continue;
             }

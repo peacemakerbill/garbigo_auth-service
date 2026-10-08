@@ -1,20 +1,29 @@
 package com.garbigo.auth.util;
 
-import java.util.regex.Pattern;
+import com.google.i18n.phonenumbers.NumberParseException;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber;
 
 public final class PhoneNumbers {
 
-    private static final Pattern KENYAN = Pattern.compile("^(?:\\+254|254|0)([17]\\d{8})$");
+    private static final PhoneNumberUtil UTIL = PhoneNumberUtil.getInstance();
 
     private PhoneNumbers() {
     }
 
-    public static String normalizeKenyan(String input) {
-        if (input == null) {
+    public static String normalize(String input, String defaultCountryCode) {
+        if (input == null || input.isBlank()) {
             return null;
         }
-        String compact = input.replaceAll("[\\s-]", "");
-        var matcher = KENYAN.matcher(compact);
-        return matcher.matches() ? "254" + matcher.group(1) : null;
+        String region = defaultCountryCode == null || defaultCountryCode.isBlank() ? null : defaultCountryCode.trim().toUpperCase();
+        try {
+            Phonenumber.PhoneNumber number = UTIL.parse(input.trim(), region);
+            if (!UTIL.isValidNumber(number)) {
+                return null;
+            }
+            return UTIL.format(number, PhoneNumberUtil.PhoneNumberFormat.E164);
+        } catch (NumberParseException e) {
+            return null;
+        }
     }
 }

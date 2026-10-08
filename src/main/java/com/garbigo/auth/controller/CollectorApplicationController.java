@@ -17,6 +17,7 @@ import com.garbigo.auth.dto.ApplicationDtos.StatusUpdateRequest;
 import com.garbigo.auth.dto.ApplicationDtos.WithdrawRequest;
 import com.garbigo.auth.model.ApplicationStatus;
 import com.garbigo.auth.model.DocumentType;
+import com.garbigo.auth.model.IdentityDocumentType;
 import com.garbigo.auth.model.ServiceType;
 import com.garbigo.auth.model.VehicleType;
 import com.garbigo.auth.service.CollectorApplicationService;
@@ -66,8 +67,9 @@ public class CollectorApplicationController {
     @GetMapping("/requirements")
     public ResponseEntity<List<RequirementView>> requirements(
             @RequestParam(required = false) VehicleType vehicleType,
-            @RequestParam(required = false) Set<ServiceType> serviceTypes) {
-        return ResponseEntity.ok(service.requirements(vehicleType, serviceTypes));
+            @RequestParam(required = false) Set<ServiceType> serviceTypes,
+            @RequestParam(required = false) IdentityDocumentType idType) {
+        return ResponseEntity.ok(service.requirements(vehicleType, serviceTypes, idType));
     }
 
     // ====================== APPLICANT ======================
@@ -124,7 +126,8 @@ public class CollectorApplicationController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) List<ApplicationStatus> status,
             @RequestParam(required = false) VehicleType vehicleType,
-            @RequestParam(required = false) String county,
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) String region,
             @RequestParam(required = false) ServiceType serviceType,
             @RequestParam(required = false) Boolean unassigned,
             @RequestParam(required = false) String assignedTo,
@@ -134,7 +137,7 @@ public class CollectorApplicationController {
             @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(service.search(new SearchParams(q, status, vehicleType, county, serviceType,
+        return ResponseEntity.ok(service.search(new SearchParams(q, status, vehicleType, country, region, serviceType,
                 unassigned, assignedTo, submittedFrom, submittedTo, sortBy, direction, page, size)));
     }
 

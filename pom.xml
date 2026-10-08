@@ -93,6 +93,25 @@
             <version>2.6.0</version>
         </dependency>
 
+        <!-- Google Drive storage for collector application documents -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-drive</artifactId>
+            <version>v3-rev20240914-2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.30.0</version>
+        </dependency>
+
+        <!-- International phone number parsing and validation -->
+        <dependency>
+            <groupId>com.googlecode.libphonenumber</groupId>
+            <artifactId>libphonenumber</artifactId>
+            <version>9.0.30</version>
+        </dependency>
+
         <!-- Redisson for Redis operations -->
         <dependency>
             <groupId>org.redisson</groupId>

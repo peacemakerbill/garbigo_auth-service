@@ -4,6 +4,8 @@ import com.garbigo.auth.model.ApplicationStatus;
 import com.garbigo.auth.model.CapacityUnit;
 import com.garbigo.auth.model.DocumentReviewStatus;
 import com.garbigo.auth.model.DocumentType;
+import com.garbigo.auth.model.IdentityDocumentType;
+import com.garbigo.auth.model.PayoutMethod;
 import com.garbigo.auth.model.ServiceType;
 import com.garbigo.auth.model.VehicleType;
 import jakarta.validation.Valid;
@@ -29,8 +31,8 @@ public final class ApplicationDtos {
     private ApplicationDtos() {
     }
 
-    private static final String PHONE = "^$|^(?:\\+254|254|0)[17]\\d{8}$";
-    private static final String PHONE_MESSAGE = "Please enter a valid Kenyan phone number, for example 0712345678.";
+    private static final String PHONE = "^$|^\\+?[0-9][0-9 ()\\-.]{5,19}$";
+    private static final String PHONE_MESSAGE = "Please enter a valid phone number. Include your country code, for example +254 712 345 678.";
     private static final String TIME = "^$|^([01]\\d|2[0-3]):[0-5]\\d$";
 
     public record EmergencyContactInput(
@@ -46,20 +48,26 @@ public final class ApplicationDtos {
     }
 
     public record ApplicationDetails(
-            @Pattern(regexp = "^$|^\\d{7,9}$", message = "Your National ID number should be 7 to 9 digits.")
-            String nationalIdNumber,
-            @Pattern(regexp = "^$|^[AaPp]\\d{9}[A-Za-z]$", message = "Your KRA PIN should look like A123456789B.")
-            String kraPin,
+            IdentityDocumentType idType,
+            @Pattern(regexp = "^$|^[A-Za-z0-9][A-Za-z0-9 /\\-]{2,38}[A-Za-z0-9]$",
+                    message = "Please enter your ID number exactly as it appears on the document, using letters and numbers only.")
+            String idNumber,
+            @Pattern(regexp = "^$|^[A-Za-z0-9][A-Za-z0-9 /.\\-]{0,28}[A-Za-z0-9]$",
+                    message = "Please enter your tax ID using letters and numbers only.")
+            String taxId,
             @Past(message = "Your date of birth must be in the past.") LocalDate dateOfBirth,
             @Pattern(regexp = PHONE, message = PHONE_MESSAGE) String alternatePhone,
 
-            @Size(max = 40, message = "The county name is too long.") String county,
-            @Size(max = 80, message = "The sub-county or estate name is too long.") String subCounty,
+            @Pattern(regexp = "^$|^[A-Za-z]{2}$", message = "Please choose your country from the list.") String countryCode,
+            @Size(max = 80, message = "The state, province or region name is too long.") String region,
+            @Size(max = 80, message = "The city or town name is too long.") String city,
+            @Size(max = 20, message = "The postal code is too long.") String postalCode,
             @Size(max = 200, message = "Your physical address is too long.") String physicalAddress,
+            @Size(max = 50, message = "The time zone is too long.") String timeZone,
 
             @Size(max = 5, message = "Please choose up to 5 services.") Set<ServiceType> serviceTypes,
             VehicleType vehicleType,
-            @Pattern(regexp = "^$|^[A-Za-z0-9 ]{5,12}$", message = "Please enter the vehicle registration as it appears on the number plate, for example KDA 123A.")
+            @Pattern(regexp = "^$|^[A-Za-z0-9][A-Za-z0-9 \\-]{0,13}[A-Za-z0-9]$", message = "Please enter the vehicle registration exactly as it appears on the number plate.")
             String vehicleRegistration,
             @Positive(message = "Vehicle capacity must be more than zero.") Double capacityValue,
             CapacityUnit capacityUnit,
@@ -85,7 +93,10 @@ public final class ApplicationDtos {
             List<@Size(max = 30, message = "A language name is too long.") String> languages,
             @Size(max = 1000, message = "Please keep your answer under 1000 characters.") String motivation,
 
-            @Pattern(regexp = PHONE, message = "Please enter a valid M-Pesa number, for example 0712345678.") String mpesaNumber,
+            PayoutMethod payoutMethod,
+            @Size(max = 80, message = "The provider name is too long.") String payoutProvider,
+            @Size(max = 40, message = "The account or mobile money number is too long.") String payoutAccountNumber,
+            @Size(max = 80, message = "The account name is too long.") String payoutAccountName,
 
             @Valid EmergencyContactInput emergencyContact,
             @Size(max = 3, message = "Please add up to 3 references.") List<@Valid ReferenceInput> references,
@@ -200,8 +211,11 @@ public final class ApplicationDtos {
             String applicantName,
             String applicantEmail,
             String applicantPhone,
-            String maskedNationalId,
-            String county,
+            String maskedIdNumber,
+            String countryCode,
+            String country,
+            String region,
+            String city,
             String vehicleType,
             List<String> serviceTypes,
             int documentsUploaded,
@@ -299,8 +313,13 @@ public final class ApplicationDtos {
     public record UploadLimits(int maxFileSizeMb, String acceptedFormats) {
     }
 
+    public record CountryOption(String code, String name, String dialCode) {
+    }
+
     public record OptionsView(
-            List<String> counties,
+            List<CountryOption> countries,
+            List<Option> idTypes,
+            List<Option> payoutMethods,
             List<VehicleOption> vehicleTypes,
             List<Option> serviceTypes,
             List<Option> capacityUnits,

@@ -67,6 +67,11 @@
   - [Facebook Setup and Testing](#facebook-setup-and-testing)
   - [GitHub Setup and Testing](#github-setup-and-testing)
   - [Verifying a Social Login](#verifying-a-social-login)
+- [Collector Applications](#collector-applications)
+  - [How It Works](#how-it-works)
+  - [Application Statuses](#application-statuses)
+  - [Required Documents](#required-documents)
+  - [Google Drive Setup](#google-drive-setup)
 - [Project Structure](#project-structure)
 - [Security Highlights](#security-highlights)
 - [Roadmap](#roadmap)
@@ -99,6 +104,14 @@ It's built as a standalone Spring Boot service, designed to sit behind an API ga
 - Live location tracking (Redis-backed, low-latency reads/writes)
 - Username, email and phone number uniqueness enforced at both the application and database level
 
+**Collector Applications**
+- Customers apply to become collectors with a guided form: personal details, service area, vehicle, availability, M-Pesa payout number, emergency contact, references, and consents
+- Worldwide ready: any country, ID type (national ID, passport, residence permit), tax ID, payout method (mobile money, bank or wallet), time zone, and international phone numbers
+- Document uploads (ID card or passport, passport-style photo, police clearance, driving licence, vehicle registration, insurance, waste transport permit and more) stored privately in Google Drive, with the required list adapting to the vehicle and services chosen
+- Staff review queue with search and filters, per-document verify or reject, statuses (submitted, in review, more information needed, verified, accepted, rejected, withdrawn), internal notes, and a status timeline
+- One-click promotion: an admin presses a single button and the applicant's role changes from `CLIENT` to `COLLECTOR`
+- A progress percentage, plain-language checklist, and next steps for the applicant, plus an email at every change
+
 **Social Layer**
 - Follow / unfollow, like / unlike, star ratings with written reviews
 - Profile view tracking — "who viewed me" and "who I viewed"
@@ -125,6 +138,8 @@ It's built as a standalone Spring Boot service, designed to sit behind an API ga
 | Authentication | JSON Web Tokens (`jjwt` 0.12.x) |
 | Social Sign-In | Google Identity Services, Facebook Graph API, GitHub OAuth |
 | Media Storage | Cloudinary (profile pictures) |
+| Document Storage | Google Drive API (collector application documents) |
+| Phone Numbers | libphonenumber (international validation, saved in E.164 format) |
 | Email | Spring Mail (SMTP) + Thymeleaf templates |
 | Object Mapping | ModelMapper |
 | Build Tool | Maven |
@@ -384,6 +399,39 @@ All endpoints are prefixed with the service's base URL.
 | GET | `/profile-views/my-stats` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | View statistics for the current user |
 | GET | `/profile-views/who-viewed-me`, `/who-i-viewed` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | View history |
 
+**Collector Applications** — `/collector-applications`
+
+Applicant endpoints, for signed-in `CLIENT` users:
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/collector-applications/options` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Counties, vehicle types, service types, days, statuses, upload limits |
+| GET | `/collector-applications/requirements` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Documents needed for a vehicle type and services (`?vehicleType=&serviceTypes=`) |
+| GET | `/collector-applications/me` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | My application, progress, checklist, and timeline |
+| GET | `/collector-applications/me/history` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | My past applications |
+| PUT | `/collector-applications/me` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Save details (partial updates, creates the draft) |
+| POST | `/collector-applications/me/documents` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Upload one document (`multipart/form-data`: `type`, `file`) |
+| DELETE | `/collector-applications/me/documents/{documentId}` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Remove a document |
+| GET | `/collector-applications/me/documents/{documentId}/file` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Open my uploaded file |
+| POST | `/collector-applications/me/submit` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Submit or resubmit |
+| POST | `/collector-applications/me/withdraw` | ![Auth](https://img.shields.io/badge/-Auth-EF5350?style=flat-square) | Withdraw the application |
+
+Staff endpoints, for `ADMIN`, `OPERATIONS`, `FINANCE`, and `SUPPORT`:
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/collector-applications` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Search and filter (`q`, `status`, `vehicleType`, `country`, `region`, `serviceType`, `unassigned`, `assignedTo`, dates, sorting, paging) |
+| GET | `/collector-applications/stats` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Counts by status, unassigned, oldest waiting |
+| GET | `/collector-applications/{id}` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Full application with documents, blockers, timeline, internal notes |
+| POST | `/collector-applications/{id}/claim` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Assign to me and start the review |
+| PATCH | `/collector-applications/{id}/status` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Change status, with a note for the applicant |
+| PATCH | `/collector-applications/{id}/documents/{documentId}/review` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Verify or reject a document |
+| GET | `/collector-applications/{id}/documents/{documentId}/file` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Open an uploaded document |
+| POST | `/collector-applications/{id}/notes` | ![Staff](https://img.shields.io/badge/-Staff-FB8C00?style=flat-square) | Add an internal note |
+| POST | `/collector-applications/{id}/promote` | ![Admin](https://img.shields.io/badge/-Admin-9C27B0?style=flat-square) | Make the applicant a collector |
+
+Request and response examples for every endpoint are in [docs/COLLECTOR_APPLICATIONS.md](docs/COLLECTOR_APPLICATIONS.md).
+
 **Internal** — `/internal` (service-to-service only)
 
 | Method | Endpoint | Access | Description |
@@ -449,6 +497,11 @@ Configuration is loaded from `.env` at startup (via `spring.config.import`), fal
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Facebook Login |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `INTERNAL_API_KEY` | Shared secret other microservices send in the `X-Internal-Api-Key` header |
+| `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN` | Google Drive storage for collector application documents |
+| `GOOGLE_DRIVE_ROOT_FOLDER_NAME`, `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Optional. Name of the folder the service creates, or an existing one it created |
+| `COLLECTOR_APPLICATION_MAX_FILE_MB` | Optional. Upload limit per document, default 5 |
+| `COLLECTOR_APPLICATION_REVIEW_DAYS` | Optional. The "we usually reply within N working days" text, default 3 |
+| `COLLECTOR_APPLICATION_PAGE_PATH` | Optional. Front-end route the email button opens, default `/collector/application` |
 
 <br/>
 
@@ -670,6 +723,84 @@ After any successful social login, check the result the same way for all three p
 
 A social-only account has no password. To let that person also sign in with email and password, they use the forgot password flow, which sets one.
 
+## Collector Applications
+
+Customers who want to work as collectors apply inside Garbigo. They fill in a guided form, upload their documents, and submit. Staff review everything, and an administrator promotes the applicant with one click. The applicant is emailed at every change.
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Applicant
+    participant S as Auth Service
+    participant D as Google Drive
+    actor R as Staff reviewer
+    actor M as Admin
+
+    A->>S: Save details, upload documents
+    S->>D: Store each file privately
+    A->>S: Submit application
+    S-->>A: Email: we received it
+    R->>S: Claim, open documents, verify or reject each one
+    alt Something needs fixing
+        R->>S: Status MORE_INFO_NEEDED with a note
+        S-->>A: Email: what to fix
+        A->>S: Fix and submit again
+    else All verified
+        R->>S: Status VERIFIED
+        S-->>A: Email: verified
+        M->>S: Promote to collector
+        S->>S: Role changes from CLIENT to COLLECTOR
+        S-->>A: Email: welcome, you are now a collector
+    end
+```
+
+Applicants always see where they stand: a progress percentage, a plain-language list of what is still missing, next steps, the note from the team, and a timeline. Staff see the same application with extra tools: document viewer, per-document review, blockers that explain why an application cannot be verified yet, internal notes, and the allowed next statuses.
+
+The full field list, every request and response, Postman steps, and error messages are in [docs/COLLECTOR_APPLICATIONS.md](docs/COLLECTOR_APPLICATIONS.md).
+
+### Application Statuses
+
+| Status | Meaning | Set by |
+|---|---|---|
+| `DRAFT` | Saved, not submitted yet | Applicant |
+| `SUBMITTED` | Waiting for a reviewer | Applicant |
+| `PROCESSING` | A staff member is reviewing | Staff, or automatically on claim or first document review |
+| `MORE_INFO_NEEDED` | The applicant must fix something and submit again | Staff (note required) |
+| `VERIFIED` | All required documents and details are verified | Staff |
+| `ACCEPTED` | Promoted. The account is now a `COLLECTOR` | Admin, through the promote action only |
+| `REJECTED` | Closed. The applicant may start a new application | Staff (reason required) |
+| `WITHDRAWN` | Cancelled by the applicant | Applicant |
+
+Each uploaded document has its own review status: `PENDING`, `VERIFIED`, or `REJECTED` with a reason. An application cannot be moved to `VERIFIED` until every required document is verified.
+
+### Required Documents
+
+Files can be PDF, JPG, or PNG, up to 5 MB. The service checks the real file content, not just the extension.
+
+| Always required | Required for motorised vehicles | Required for sewage exhauster services | Optional |
+|---|---|---|---|
+| ID document (front and back, or the passport photo page), passport-style photo, police clearance certificate | Driving licence, vehicle logbook, insurance certificate | Waste transport permit | Proof of address, up to 5 other supporting documents |
+
+### Google Drive Setup
+
+Documents are stored in the Google Drive of a dedicated Google account, in a private folder per applicant. The service uses only the narrow `drive.file` scope, so it can see nothing except what it created itself.
+
+1. In the Google Cloud Console, enable the **Google Drive API**.
+2. On the OAuth consent screen choose **External**, add the scope `https://www.googleapis.com/auth/drive.file`, and click **Publish app** so the refresh token does not expire after 7 days.
+3. Create an **OAuth client ID** of type **Web application** with the redirect URI `https://developers.google.com/oauthplayground`.
+4. In the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground), tick **Use your own OAuth credentials**, authorize the `drive.file` scope with the storage account, exchange the code, and copy the **refresh token**.
+5. Add the three values to `.env`:
+   ```properties
+   GOOGLE_DRIVE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_DRIVE_CLIENT_SECRET=your-client-secret
+   GOOGLE_DRIVE_REFRESH_TOKEN=your-refresh-token
+   ```
+6. Restart the service. The first upload creates the folder `Garbigo Collector Applications`.
+
+Without these values the rest of the service works normally, and uploads return a friendly message saying document storage is unavailable.
+
 <br/>
 
 ## Project Structure
@@ -680,15 +811,15 @@ src/main/java/com/garbigo/auth
 ├── controller       # REST controllers: Auth, User, Social, ProfileView, Home
 ├── dto              # Request/response payloads
 ├── exception        # CustomException + global JSON error handling
-├── model            # MongoDB documents: User, Token, Follow, Like, Review, ProfileView, LiveLocation
+├── model            # MongoDB documents: User, Token, Follow, Like, Review, ProfileView, LiveLocation, CollectorApplication
 ├── repository       # Spring Data MongoDB repositories
 ├── security         # JwtUtil, JwtFilter, TokenBlacklistService, UserDetailsServiceImpl
-├── service          # Business logic: AuthService, SocialAuthService, UserService, SocialService, ...
-└── util             # RateLimiter
+├── service          # Business logic: AuthService, SocialAuthService, UserService, SocialService, CollectorApplicationService, GoogleDriveStorageService, ...
+└── util             # RateLimiter, Countries, PhoneNumbers
 
 src/main/resources
 ├── application.yml
-└── templates        # Thymeleaf email templates (verification, password reset)
+└── templates        # Thymeleaf email templates (verification, password reset, application updates)
 ```
 
 <br/>
@@ -700,6 +831,9 @@ src/main/resources
 - **Enumeration-conscious where it matters.** Wrong password and unknown email return the identical generic message; Spring Security's own `DaoAuthenticationProvider` behavior is relied on rather than re-implemented.
 - **No plaintext secrets in source control.** Configuration is environment-variable driven end to end.
 - **Consistent, human-readable error responses.** Every failure path — validation, business rule, or unexpected exception — returns clean JSON, never a raw stack trace or a leaked internal exception message.
+- **Applicant documents are private.** They live in a private Google Drive folder per applicant and are never shared by link. Staff open them only through the service, which checks their role on every request, and each view is logged with the staff member's id. ID numbers are masked in list views.
+- **Uploads are verified by content.** The service reads the file's first bytes to confirm it really is a PDF, JPG, or PNG, enforces a size limit, and replaces the original file name with a generated one, so a renamed executable or a path trick never reaches storage.
+- **Role changes need an admin.** Only an `ADMIN` can promote an applicant to `COLLECTOR`, and only from a fully verified application.
 - **Passwords are BCrypt-hashed**, and social-login accounts never receive a local password at all.
 
 <br/>

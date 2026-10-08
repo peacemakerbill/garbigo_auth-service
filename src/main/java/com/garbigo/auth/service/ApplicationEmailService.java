@@ -44,7 +44,6 @@ public class ApplicationEmailService {
 
     public void sendStatusEmail(CollectorApplication app, ApplicationStatus status, String teamNote,
                                 List<String> attentionItems) {
-        String name = firstName(app);
         Look look = lookFor(status);
         String subject;
         String heading;

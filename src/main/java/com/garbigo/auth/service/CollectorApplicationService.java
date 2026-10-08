@@ -2,6 +2,7 @@ package com.garbigo.auth.service;
 
 import com.garbigo.auth.dto.ApplicationDtos.ApplicationDetails;
 import com.garbigo.auth.dto.ApplicationDtos.ApplicationResponse;
+import com.garbigo.auth.dto.ApplicationDtos.CountryOption;
 import com.garbigo.auth.dto.ApplicationDtos.DocumentReviewRequest;
 import com.garbigo.auth.dto.ApplicationDtos.EmergencyContactInput;
 import com.garbigo.auth.dto.ApplicationDtos.MyApplicationResponse;
@@ -31,7 +32,9 @@ import com.garbigo.auth.model.VehicleType;
 import com.garbigo.auth.model.CapacityUnit;
 import com.garbigo.auth.repository.CollectorApplicationRepository;
 import com.garbigo.auth.repository.UserRepository;
-import com.garbigo.auth.util.KenyaCounties;
+import com.garbigo.auth.util.Countries;
+import com.garbigo.auth.model.IdentityDocumentType;
+import com.garbigo.auth.model.PayoutMethod;
 import com.garbigo.auth.util.PhoneNumbers;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -85,7 +88,8 @@ public class CollectorApplicationService {
             String q,
             List<ApplicationStatus> statuses,
             VehicleType vehicleType,
-            String county,
+            String country,
+            String region,
             ServiceType serviceType,
             Boolean unassigned,
             String assignedTo,
@@ -125,7 +129,9 @@ public class CollectorApplicationService {
 
     public OptionsView options() {
         return new OptionsView(
-                KenyaCounties.ALL,
+                Countries.all().stream().map(c -> new CountryOption(c.code(), c.name(), c.dialCode())).toList(),
+                java.util.Arrays.stream(IdentityDocumentType.values()).map(t -> new Option(t.name(), t.label())).toList(),
+                java.util.Arrays.stream(PayoutMethod.values()).map(m -> new Option(m.name(), m.label())).toList(),
                 java.util.Arrays.stream(VehicleType.values())
                         .map(v -> new VehicleOption(v.name(), v.label(), v.motorized())).toList(),
                 java.util.Arrays.stream(ServiceType.values()).map(s -> new Option(s.name(), s.label())).toList(),
@@ -138,10 +144,12 @@ public class CollectorApplicationService {
     }
 
     public List<com.garbigo.auth.dto.ApplicationDtos.RequirementView> requirements(VehicleType vehicle,
-                                                                                   Set<ServiceType> services) {
+                                                                                   Set<ServiceType> services,
+                                                                                   IdentityDocumentType idType) {
         CollectorApplication probe = new CollectorApplication();
         probe.setVehicleType(vehicle);
         probe.setServiceTypes(services == null ? new LinkedHashSet<>() : services);
+        probe.setIdType(idType);
         return mapper.requirementsFor(probe);
     }
 
@@ -281,7 +289,7 @@ public class CollectorApplicationService {
         if (!progress.readyToSubmit()) {
             throw new CustomException("Almost there. Before you submit: " + String.join("; ", progress.missing()) + ".");
         }
-        if (idUsedElsewhere(app, app.getNationalIdNumber())) {
+        if (idUsedElsewhere(app)) {
             throw new CustomException("This National ID number is already used in another application.");
         }
 
@@ -339,14 +347,18 @@ public class CollectorApplicationService {
                     Criteria.where("applicantEmail").regex(rx, "i"),
                     Criteria.where("applicantPhone").regex(rx, "i"),
                     Criteria.where("referenceNumber").regex(rx, "i"),
-                    Criteria.where("nationalIdNumber").regex(rx, "i"),
-                    Criteria.where("kraPin").regex(rx, "i")));
+                    Criteria.where("idNumber").regex(rx, "i"),
+                    Criteria.where("taxId").regex(rx, "i")));
         }
         if (p.vehicleType() != null) {
             and.add(Criteria.where("vehicleType").is(p.vehicleType()));
         }
-        if (p.county() != null && !p.county().isBlank()) {
-            and.add(Criteria.where("county").regex("^" + Pattern.quote(p.county().trim()) + "$", "i"));
+        if (p.country() != null && !p.country().isBlank()) {
+            String code = Countries.normalize(p.country());
+            and.add(Criteria.where("countryCode").is(code == null ? p.country().trim() : code));
+        }
+        if (p.region() != null && !p.region().isBlank()) {
+            and.add(Criteria.where("region").regex("^" + Pattern.quote(p.region().trim()) + "$", "i"));
         }
         if (p.serviceType() != null) {
             and.add(Criteria.where("serviceTypes").is(p.serviceType()));
@@ -736,14 +748,16 @@ public class CollectorApplicationService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private String phone(String raw, String label) {
+    private String phone(String raw, String label, String countryCode) {
         String cleaned = clean(raw);
         if (cleaned == null) {
             return null;
         }
-        String normalized = PhoneNumbers.normalizeKenyan(cleaned);
+        String normalized = PhoneNumbers.normalize(cleaned, countryCode);
         if (normalized == null) {
-            throw new CustomException("Please enter a valid Kenyan number for your " + label + ", for example 0712345678.");
+            throw new CustomException("Please enter a valid phone number for your " + label
+                    + ". Start with your country code, for example +254712345678"
+                    + (countryCode == null ? ", or choose your country first." : "."));
         }
         return normalized;
     }
@@ -754,16 +768,32 @@ public class CollectorApplicationService {
     }
 
     private void applyDetails(CollectorApplication app, ApplicationDetails in) {
-        if (in.nationalIdNumber() != null) {
-            String id = clean(in.nationalIdNumber());
-            if (id != null && idUsedElsewhere(app, id)) {
-                throw new CustomException("This National ID number is already used in another application. If you think this is a mistake, please contact support.");
+        if (in.countryCode() != null) {
+            String raw = clean(in.countryCode());
+            if (raw == null) {
+                app.setCountryCode(null);
+            } else {
+                String code = Countries.normalize(raw);
+                if (code == null) {
+                    throw new CustomException("We could not recognise that country. Please choose one from the list.");
+                }
+                app.setCountryCode(code);
             }
-            app.setNationalIdNumber(id);
         }
-        if (in.kraPin() != null) {
-            String pin = clean(in.kraPin());
-            app.setKraPin(pin == null ? null : pin.toUpperCase(Locale.ENGLISH));
+        if (in.idType() != null) {
+            app.setIdType(in.idType());
+        }
+        if (in.idNumber() != null) {
+            String id = clean(in.idNumber());
+            app.setIdNumber(id == null ? null : id.toUpperCase(Locale.ENGLISH).replaceAll("\\s+", " "));
+            if (app.getIdNumber() != null && idUsedElsewhere(app)) {
+                app.setIdNumber(null);
+                throw new CustomException("This ID number is already used in another application. If you think this is a mistake, please contact support.");
+            }
+        }
+        if (in.taxId() != null) {
+            String tax = clean(in.taxId());
+            app.setTaxId(tax == null ? null : tax.toUpperCase(Locale.ENGLISH));
         }
         if (in.dateOfBirth() != null) {
             int age = Period.between(in.dateOfBirth(), LocalDate.now()).getYears();
@@ -776,23 +806,27 @@ public class CollectorApplicationService {
             app.setDateOfBirth(in.dateOfBirth());
         }
         if (in.alternatePhone() != null) {
-            app.setAlternatePhone(phone(in.alternatePhone(), "alternate phone number"));
+            app.setAlternatePhone(phone(in.alternatePhone(), "alternate phone number", app.getCountryCode()));
         }
 
-        if (in.county() != null) {
-            String county = clean(in.county());
-            if (county == null) {
-                app.setCounty(null);
-            } else {
-                app.setCounty(KenyaCounties.canonical(county).orElseThrow(() ->
-                        new CustomException("We could not recognise that county. Please choose one from the list.")));
-            }
+        if (in.region() != null) {
+            app.setRegion(clean(in.region()));
         }
-        if (in.subCounty() != null) {
-            app.setSubCounty(clean(in.subCounty()));
+        if (in.city() != null) {
+            app.setCity(clean(in.city()));
+        }
+        if (in.postalCode() != null) {
+            app.setPostalCode(clean(in.postalCode()));
         }
         if (in.physicalAddress() != null) {
             app.setPhysicalAddress(clean(in.physicalAddress()));
+        }
+        if (in.timeZone() != null) {
+            String zone = clean(in.timeZone());
+            if (zone != null && !java.time.ZoneId.getAvailableZoneIds().contains(zone)) {
+                throw new CustomException("We could not recognise that time zone. Please choose one from the list, for example Africa/Nairobi.");
+            }
+            app.setTimeZone(zone);
         }
 
         if (in.serviceTypes() != null) {
@@ -849,8 +883,21 @@ public class CollectorApplicationService {
         if (in.motivation() != null) {
             app.setMotivation(clean(in.motivation()));
         }
-        if (in.mpesaNumber() != null) {
-            app.setMpesaNumber(phone(in.mpesaNumber(), "M-Pesa number"));
+        if (in.payoutMethod() != null) {
+            app.setPayoutMethod(in.payoutMethod());
+        }
+        if (in.payoutProvider() != null) {
+            app.setPayoutProvider(clean(in.payoutProvider()));
+        }
+        if (in.payoutAccountNumber() != null) {
+            String account = clean(in.payoutAccountNumber());
+            if (account != null && app.getPayoutMethod() == PayoutMethod.MOBILE_MONEY) {
+                account = phone(account, "mobile money number", app.getCountryCode());
+            }
+            app.setPayoutAccountNumber(account);
+        }
+        if (in.payoutAccountName() != null) {
+            app.setPayoutAccountName(clean(in.payoutAccountName()));
         }
 
         EmergencyContactInput ec = in.emergencyContact();
@@ -864,7 +911,7 @@ public class CollectorApplicationService {
                 contact.setRelationship(clean(ec.relationship()));
             }
             if (ec.phone() != null) {
-                contact.setPhone(phone(ec.phone(), "emergency contact"));
+                contact.setPhone(phone(ec.phone(), "emergency contact", app.getCountryCode()));
             }
             app.setEmergencyContact(contact);
         }
@@ -877,7 +924,7 @@ public class CollectorApplicationService {
                 CollectorApplication.Reference ref = new CollectorApplication.Reference();
                 ref.setName(clean(r.name()));
                 ref.setRelationship(clean(r.relationship()));
-                ref.setPhone(phone(r.phone(), "reference"));
+                ref.setPhone(phone(r.phone(), "reference", app.getCountryCode()));
                 refs.add(ref);
             }
             app.setReferences(refs);
@@ -894,9 +941,14 @@ public class CollectorApplicationService {
         }
     }
 
-    private boolean idUsedElsewhere(CollectorApplication app, String nationalId) {
+    private boolean idUsedElsewhere(CollectorApplication app) {
+        if (app.getIdNumber() == null) {
+            return false;
+        }
         Criteria c = new Criteria().andOperator(
-                Criteria.where("nationalIdNumber").is(nationalId),
+                Criteria.where("idNumber").is(app.getIdNumber()),
+                Criteria.where("idType").is(app.getIdType()),
+                Criteria.where("countryCode").is(app.getCountryCode()),
                 Criteria.where("userId").ne(app.getUserId()),
                 Criteria.where("status").in(ApplicationStatus.SUBMITTED, ApplicationStatus.PROCESSING,
                         ApplicationStatus.MORE_INFO_NEEDED, ApplicationStatus.VERIFIED, ApplicationStatus.ACCEPTED));

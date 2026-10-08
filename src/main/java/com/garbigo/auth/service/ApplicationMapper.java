@@ -25,6 +25,8 @@ import com.garbigo.auth.model.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.garbigo.auth.util.Countries;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -61,28 +63,30 @@ public class ApplicationMapper {
                 .map(r -> new ReferenceInput(r.getName(), r.getRelationship(), r.getPhone()))
                 .toList();
         return new ApplicationDetails(
-                a.getNationalIdNumber(), a.getKraPin(), a.getDateOfBirth(), a.getAlternatePhone(),
-                a.getCounty(), a.getSubCounty(), a.getPhysicalAddress(),
+                a.getIdType(), a.getIdNumber(), a.getTaxId(), a.getDateOfBirth(), a.getAlternatePhone(),
+                a.getCountryCode(), a.getRegion(), a.getCity(), a.getPostalCode(), a.getPhysicalAddress(), a.getTimeZone(),
                 a.getServiceTypes(), a.getVehicleType(), a.getVehicleRegistration(),
                 a.getCapacityValue(), a.getCapacityUnit(), a.getServiceAreas(),
                 a.getMaxTravelDistanceKm(), a.getHelpersCount(),
                 a.getAvailableDays(), a.getShiftStart(), a.getShiftEnd(), a.getAvailableForEmergency(),
                 a.getYearsOfExperience(), a.getExperienceSummary(), a.getLanguages(), a.getMotivation(),
-                a.getMpesaNumber(), contact, refs,
+                a.getPayoutMethod(), a.getPayoutProvider(), a.getPayoutAccountNumber(), a.getPayoutAccountName(),
+                contact, refs,
                 a.getAcceptedTerms(), a.getConsentToBackgroundCheck(), a.getConfirmsInfoIsTrue());
     }
 
     public List<RequirementView> baselineRequirements() {
-        return requirements(null, Collections.emptySet(), List.of());
+        return requirements(null, Collections.emptySet(), null, List.of());
     }
 
     public List<RequirementView> requirementsFor(CollectorApplication a) {
-        return requirements(a.getVehicleType(), a.getServiceTypes(), a.getDocuments());
+        return requirements(a.getVehicleType(), a.getServiceTypes(), a.getIdType(), a.getDocuments());
     }
 
     private List<RequirementView> requirements(com.garbigo.auth.model.VehicleType vehicle, Set<ServiceType> services,
+                                               com.garbigo.auth.model.IdentityDocumentType idType,
                                                List<ApplicationDocument> docs) {
-        return DocumentRequirementRules.forApplication(vehicle, services).stream().map(rule -> {
+        return DocumentRequirementRules.forApplication(vehicle, services, idType).stream().map(rule -> {
             DocumentType t = rule.type();
             ApplicationDocument existing = docs == null ? null
                     : docs.stream().filter(d -> d.getType() == t).findFirst().orElse(null);
@@ -185,7 +189,7 @@ public class ApplicationMapper {
     }
 
     public StaffSummary toStaffSummary(CollectorApplication a) {
-        Set<DocumentType> required = DocumentRequirementRules.requiredTypes(a.getVehicleType(), a.getServiceTypes());
+        Set<DocumentType> required = DocumentRequirementRules.requiredTypes(a.getVehicleType(), a.getServiceTypes(), a.getIdType());
         List<ApplicationDocument> docs = a.getDocuments() == null ? List.of() : a.getDocuments();
         int verified = (int) docs.stream().filter(d -> d.getReviewStatus() == DocumentReviewStatus.VERIFIED).count();
         Long waiting = null;
@@ -195,7 +199,8 @@ public class ApplicationMapper {
         return new StaffSummary(
                 a.getId(), a.getReferenceNumber(), statusInfo(a.getStatus()),
                 a.getApplicantName(), a.getApplicantEmail(), a.getApplicantPhone(),
-                mask(a.getNationalIdNumber()), a.getCounty(),
+                mask(a.getIdNumber()), a.getCountryCode(), Countries.nameOf(a.getCountryCode()),
+                a.getRegion(), a.getCity(),
                 a.getVehicleType() == null ? null : a.getVehicleType().label(),
                 a.getServiceTypes() == null ? List.of()
                         : a.getServiceTypes().stream().map(ServiceType::label).toList(),
@@ -250,7 +255,7 @@ public class ApplicationMapper {
     public List<String> verificationBlockers(CollectorApplication a) {
         List<String> blockers = new ArrayList<>();
         List<ApplicationDocument> docs = a.getDocuments() == null ? List.of() : a.getDocuments();
-        for (DocumentType type : DocumentRequirementRules.requiredTypes(a.getVehicleType(), a.getServiceTypes())) {
+        for (DocumentType type : DocumentRequirementRules.requiredTypes(a.getVehicleType(), a.getServiceTypes(), a.getIdType())) {
             ApplicationDocument doc = docs.stream().filter(d -> d.getType() == type).findFirst().orElse(null);
             if (doc == null) {
                 blockers.add(type.label() + " has not been uploaded");
