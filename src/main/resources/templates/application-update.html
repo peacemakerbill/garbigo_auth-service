@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title th:text="${heading}">Your Garbigo application</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #f0f2f5; }
+        @media only screen and (max-width: 620px) {
+            .email-container { width: 100% !important; }
+            .fluid-padding { padding-left: 24px !important; padding-right: 24px !important; }
+            .stack { display: block !important; width: 100% !important; }
+        }
+    </style>
+</head>
+<body style="margin:0; padding:0; background-color:#f0f2f5;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f0f2f5;" th:text="${preheader}">
+    An update on your Garbigo collector application.
+</div>
+
+<center style="width:100%; background-color:#f0f2f5;">
+    <!--[if mso]>
+    <table role="presentation" align="center" width="600" style="width:600px;">
+    <tr><td>
+    <![endif]-->
+    <table role="presentation" class="email-container" align="center" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto;">
+        <tr>
+            <td style="padding:40px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden;">
+                    <tr>
+                        <td th:bgcolor="${accent}" th:style="'background-color:' + ${accent} + '; padding:30px; text-align:center;'">
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px auto;">
+                                <tr>
+                                    <td bgcolor="#ffffff" width="56" height="56" align="center" valign="middle"
+                                        th:style="'background-color:#ffffff; border-radius:50%; width:56px; height:56px; font-family:Helvetica, Arial, sans-serif; font-size:28px; font-weight:bold; color:' + ${accent} + '; line-height:56px;'"
+                                        th:text="${symbol}">&#10003;</td>
+                                </tr>
+                            </table>
+                            <h1 style="margin:0; font-family:Helvetica, Arial, sans-serif; font-size:24px; font-weight:bold; color:#ffffff;" th:text="${heading}">
+                                Your application
+                            </h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="fluid-padding" style="padding:36px 40px 32px 40px; font-family:Helvetica, Arial, sans-serif;">
+                            <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                Hi <span th:text="${name}">there</span>,
+                            </p>
+                            <p style="margin:0 0 24px 0; font-size:16px; line-height:1.6; color:#333333;" th:text="${intro}">
+                                Here is an update on your application.
+                            </p>
+
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0; border:1px solid #e5e7eb; border-radius:8px;">
+                                <tr>
+                                    <td class="stack" width="50%" style="padding:14px 16px; font-family:Helvetica, Arial, sans-serif; border-bottom:1px solid #e5e7eb;">
+                                        <div style="font-size:12px; color:#777777; margin-bottom:4px;">Application reference</div>
+                                        <div style="font-size:15px; font-weight:bold; color:#222222; letter-spacing:0.5px;" th:text="${reference}">GCA-2026-000001</div>
+                                    </td>
+                                    <td class="stack" width="50%" style="padding:14px 16px; font-family:Helvetica, Arial, sans-serif; border-bottom:1px solid #e5e7eb;">
+                                        <div style="font-size:12px; color:#777777; margin-bottom:4px;">Current status</div>
+                                        <span th:style="'display:inline-block; padding:4px 12px; border-radius:999px; font-size:13px; font-weight:bold; color:' + ${accent} + '; background-color:' + ${accentSoft} + ';'" th:text="${statusLabel}">In review</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="stack" width="50%" style="padding:14px 16px; font-family:Helvetica, Arial, sans-serif;">
+                                        <div style="font-size:12px; color:#777777; margin-bottom:4px;">Updated</div>
+                                        <div style="font-size:14px; color:#222222;" th:text="${updatedAt}">08 Oct 2026, 10:00 UTC</div>
+                                    </td>
+                                    <td class="stack" width="50%" style="padding:14px 16px; font-family:Helvetica, Arial, sans-serif;">
+                                        <div style="font-size:12px; color:#777777; margin-bottom:4px;">Applying for</div>
+                                        <div style="font-size:14px; color:#222222;" th:text="${applyingFor}">Garbigo collector</div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;" th:if="${note != null and !#strings.isEmpty(note)}">
+                                <tr>
+                                    <td th:bgcolor="${accentSoft}" th:style="'background-color:' + ${accentSoft} + '; border-left:4px solid ' + ${accent} + '; border-radius:8px; padding:15px; text-align:left;'">
+                                        <p style="margin:0 0 6px 0; font-size:13px; font-weight:bold; color:#333333; font-family:Helvetica, Arial, sans-serif;" th:text="${noteTitle}">Note from our team</p>
+                                        <p style="margin:0; font-size:14px; line-height:1.6; color:#333333; font-family:Helvetica, Arial, sans-serif;" th:text="${note}">Note text</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;" th:if="${items != null and !items.isEmpty()}">
+                                <tr>
+                                    <td bgcolor="#fff8e1" style="background-color:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:15px; text-align:left;">
+                                        <p style="margin:0 0 8px 0; font-size:13px; font-weight:bold; color:#8a5a00; font-family:Helvetica, Arial, sans-serif;" th:text="${itemsTitle}">Needs your attention</p>
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr th:each="item : ${items}">
+                                                <td width="14" valign="top" style="font-size:14px; line-height:1.6; color:#8a5a00; font-family:Helvetica, Arial, sans-serif;">&bull;</td>
+                                                <td style="font-size:14px; line-height:1.6; color:#5d4037; font-family:Helvetica, Arial, sans-serif; padding-bottom:4px;" th:text="${item}">Item</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin:0 0 10px 0; font-size:15px; font-weight:bold; color:#222222;">What happens next</p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+                                <tr th:each="step, stat : ${steps}">
+                                    <td width="32" valign="top" style="padding:0 0 10px 0;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td align="center" valign="middle" width="22" height="22"
+                                                    th:bgcolor="${accent}" th:style="'width:22px; height:22px; border-radius:50%; background-color:' + ${accent} + '; color:#ffffff; font-family:Helvetica, Arial, sans-serif; font-size:12px; font-weight:bold; line-height:22px;'"
+                                                    th:text="${stat.count}">1</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                    <td valign="top" style="padding:1px 0 10px 0; font-size:14px; line-height:1.6; color:#444444; font-family:Helvetica, Arial, sans-serif;" th:text="${step}">Step</td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;" th:if="${ctaUrl != null}">
+                                <tr>
+                                    <td th:bgcolor="${accent}" th:style="'background-color:' + ${accent} + '; border-radius:8px;'">
+                                        <a th:href="${ctaUrl}" target="_blank"
+                                           style="display:inline-block; padding:14px 32px; font-family:Helvetica, Arial, sans-serif; font-size:16px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:8px;"
+                                           th:text="${ctaLabel}">Open my application</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin:24px 0 0 0; font-size:13px; line-height:1.6; color:#999999; text-align:center;">
+                                Questions? Just reply to this email and quote your reference number.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:20px; text-align:center; font-family:Helvetica, Arial, sans-serif;">
+                            <p style="margin:0 0 6px 0; font-size:12px; color:#999999;">
+                                Sent to <span th:text="${email}">your email</span> on <span th:text="${sentAt}">the send date</span>.
+                            </p>
+                            <p style="margin:0; font-size:13px; color:#666666;">&copy; 2026 Garbigo. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <!--[if mso]>
+    </td></tr>
+    </table>
+    <![endif]-->
+</center>
+</body>
+</html>
