@@ -105,7 +105,7 @@ It's built as a standalone Spring Boot service, designed to sit behind an API ga
 - Username, email and phone number uniqueness enforced at both the application and database level
 
 **Collector Applications**
-- Customers apply to become collectors with a guided form: personal details, service area, vehicle, availability, M-Pesa payout number, emergency contact, references, and consents
+- Customers apply to become collectors with a guided form: personal details, service area, vehicle, availability, payout details, emergency contact, references, and consents
 - Worldwide ready: any country, ID type (national ID, passport, residence permit), tax ID, payout method (mobile money, bank or wallet), time zone, and international phone numbers
 - Document uploads (ID card or passport, passport-style photo, police clearance, driving licence, vehicle registration, insurance, waste transport permit and more) stored privately in Google Drive, with the required list adapting to the vehicle and services chosen
 - Staff review queue with search and filters, per-document verify or reject, statuses (submitted, in review, more information needed, verified, accepted, rejected, withdrawn), internal notes, and a status timeline
@@ -810,6 +810,7 @@ src/main/java/com/garbigo/auth
 ├── config          # Security, Mongo, Redis, RabbitMQ, Mail, Cloudinary, ModelMapper, rate limiting
 ├── controller       # REST controllers: Auth, User, Social, ProfileView, Home
 ├── dto              # Request/response payloads
+├── enums            # Application statuses, document types, vehicle and service types, ID types, payout methods
 ├── exception        # CustomException + global JSON error handling
 ├── model            # MongoDB documents: User, Token, Follow, Like, Review, ProfileView, LiveLocation, CollectorApplication
 ├── repository       # Spring Data MongoDB repositories
