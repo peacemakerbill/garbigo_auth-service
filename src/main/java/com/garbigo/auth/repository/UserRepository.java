@@ -1,6 +1,6 @@
 package com.garbigo.auth.repository;
 
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.User;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;

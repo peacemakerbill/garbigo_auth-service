@@ -1,7 +1,7 @@
 package com.garbigo.auth.service;
 
 import com.garbigo.auth.exception.CustomException;
-import com.garbigo.auth.model.DocumentType;
+import com.garbigo.auth.enums.DocumentType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;

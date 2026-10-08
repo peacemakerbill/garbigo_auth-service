@@ -4,7 +4,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.garbigo.auth.dto.*;
 import com.garbigo.auth.exception.CustomException;
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.Token;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.TokenRepository;

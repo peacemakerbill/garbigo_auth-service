@@ -1,4 +1,4 @@
-package com.garbigo.auth.model;
+package com.garbigo.auth.enums;
 
 import java.util.EnumSet;
 import java.util.Set;

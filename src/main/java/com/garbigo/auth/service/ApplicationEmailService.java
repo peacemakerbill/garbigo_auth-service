@@ -1,6 +1,6 @@
 package com.garbigo.auth.service;
 
-import com.garbigo.auth.model.ApplicationStatus;
+import com.garbigo.auth.enums.ApplicationStatus;
 import com.garbigo.auth.model.CollectorApplication;
 import com.garbigo.auth.model.CollectorApplication.ApplicationDocument;
 import jakarta.mail.internet.MimeMessage;

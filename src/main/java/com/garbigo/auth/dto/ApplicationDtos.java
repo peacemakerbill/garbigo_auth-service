@@ -1,13 +1,13 @@
 package com.garbigo.auth.dto;
 
-import com.garbigo.auth.model.ApplicationStatus;
-import com.garbigo.auth.model.CapacityUnit;
-import com.garbigo.auth.model.DocumentReviewStatus;
-import com.garbigo.auth.model.DocumentType;
-import com.garbigo.auth.model.IdentityDocumentType;
-import com.garbigo.auth.model.PayoutMethod;
-import com.garbigo.auth.model.ServiceType;
-import com.garbigo.auth.model.VehicleType;
+import com.garbigo.auth.enums.ApplicationStatus;
+import com.garbigo.auth.enums.CapacityUnit;
+import com.garbigo.auth.enums.DocumentReviewStatus;
+import com.garbigo.auth.enums.DocumentType;
+import com.garbigo.auth.enums.IdentityDocumentType;
+import com.garbigo.auth.enums.PayoutMethod;
+import com.garbigo.auth.enums.ServiceType;
+import com.garbigo.auth.enums.VehicleType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

@@ -1,6 +1,6 @@
 package com.garbigo.auth.repository;
 
-import com.garbigo.auth.model.ApplicationStatus;
+import com.garbigo.auth.enums.ApplicationStatus;
 import com.garbigo.auth.model.CollectorApplication;
 import org.springframework.data.mongodb.repository.MongoRepository;
 

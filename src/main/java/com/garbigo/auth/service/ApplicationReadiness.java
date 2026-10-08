@@ -4,8 +4,8 @@ import com.garbigo.auth.dto.ApplicationDtos.ProgressView;
 import com.garbigo.auth.dto.ApplicationDtos.SectionProgress;
 import com.garbigo.auth.model.CollectorApplication;
 import com.garbigo.auth.model.CollectorApplication.ApplicationDocument;
-import com.garbigo.auth.model.DocumentReviewStatus;
-import com.garbigo.auth.model.DocumentType;
+import com.garbigo.auth.enums.DocumentReviewStatus;
+import com.garbigo.auth.enums.DocumentType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

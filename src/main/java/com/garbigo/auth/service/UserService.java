@@ -6,7 +6,7 @@ import com.garbigo.auth.dto.ProfileUpdateDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.UserRepository;
 import org.modelmapper.ModelMapper;

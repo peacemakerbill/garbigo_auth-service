@@ -1,6 +1,6 @@
 package com.garbigo.auth.dto;
 
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;

@@ -7,7 +7,7 @@ import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.model.LiveLocation;
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.LiveLocationRepository;
 import com.garbigo.auth.repository.UserRepository;

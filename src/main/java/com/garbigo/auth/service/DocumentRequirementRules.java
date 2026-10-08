@@ -1,9 +1,9 @@
 package com.garbigo.auth.service;
 
-import com.garbigo.auth.model.DocumentType;
-import com.garbigo.auth.model.IdentityDocumentType;
-import com.garbigo.auth.model.ServiceType;
-import com.garbigo.auth.model.VehicleType;
+import com.garbigo.auth.enums.DocumentType;
+import com.garbigo.auth.enums.IdentityDocumentType;
+import com.garbigo.auth.enums.ServiceType;
+import com.garbigo.auth.enums.VehicleType;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,5 +1,13 @@
 package com.garbigo.auth.model;
 
+import com.garbigo.auth.enums.ApplicationStatus;
+import com.garbigo.auth.enums.DocumentType;
+import com.garbigo.auth.enums.DocumentReviewStatus;
+import com.garbigo.auth.enums.VehicleType;
+import com.garbigo.auth.enums.ServiceType;
+import com.garbigo.auth.enums.CapacityUnit;
+import com.garbigo.auth.enums.IdentityDocumentType;
+import com.garbigo.auth.enums.PayoutMethod;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;

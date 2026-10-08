@@ -14,18 +14,20 @@ import com.garbigo.auth.dto.ApplicationDtos.StaffSummary;
 import com.garbigo.auth.dto.ApplicationDtos.StatusInfo;
 import com.garbigo.auth.dto.ApplicationDtos.StatusInfoOption;
 import com.garbigo.auth.dto.ApplicationDtos.TimelineEntry;
-import com.garbigo.auth.model.ApplicationStatus;
-import com.garbigo.auth.model.CollectorApplication;
+import com.garbigo.auth.enums.ApplicationStatus;
+import com.garbigo.auth.enums.DocumentReviewStatus;
+import com.garbigo.auth.enums.DocumentType;
+import com.garbigo.auth.enums.IdentityDocumentType;
+import com.garbigo.auth.enums.ServiceType;
+import com.garbigo.auth.enums.VehicleType;
 import com.garbigo.auth.model.CollectorApplication.ApplicationDocument;
 import com.garbigo.auth.model.CollectorApplication.StatusHistoryEntry;
-import com.garbigo.auth.model.DocumentReviewStatus;
-import com.garbigo.auth.model.DocumentType;
-import com.garbigo.auth.model.ServiceType;
+import com.garbigo.auth.model.CollectorApplication;
 import com.garbigo.auth.model.User;
+import com.garbigo.auth.util.Countries;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import com.garbigo.auth.util.Countries;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -83,8 +85,8 @@ public class ApplicationMapper {
         return requirements(a.getVehicleType(), a.getServiceTypes(), a.getIdType(), a.getDocuments());
     }
 
-    private List<RequirementView> requirements(com.garbigo.auth.model.VehicleType vehicle, Set<ServiceType> services,
-                                               com.garbigo.auth.model.IdentityDocumentType idType,
+    private List<RequirementView> requirements(VehicleType vehicle, Set<ServiceType> services,
+                                               IdentityDocumentType idType,
                                                List<ApplicationDocument> docs) {
         return DocumentRequirementRules.forApplication(vehicle, services, idType).stream().map(rule -> {
             DocumentType t = rule.type();

@@ -15,11 +15,11 @@ import com.garbigo.auth.dto.ApplicationDtos.StaffSummary;
 import com.garbigo.auth.dto.ApplicationDtos.StatsView;
 import com.garbigo.auth.dto.ApplicationDtos.StatusUpdateRequest;
 import com.garbigo.auth.dto.ApplicationDtos.WithdrawRequest;
-import com.garbigo.auth.model.ApplicationStatus;
-import com.garbigo.auth.model.DocumentType;
-import com.garbigo.auth.model.IdentityDocumentType;
-import com.garbigo.auth.model.ServiceType;
-import com.garbigo.auth.model.VehicleType;
+import com.garbigo.auth.enums.ApplicationStatus;
+import com.garbigo.auth.enums.DocumentType;
+import com.garbigo.auth.enums.IdentityDocumentType;
+import com.garbigo.auth.enums.ServiceType;
+import com.garbigo.auth.enums.VehicleType;
 import com.garbigo.auth.service.CollectorApplicationService;
 import com.garbigo.auth.service.CollectorApplicationService.DocumentFile;
 import com.garbigo.auth.service.CollectorApplicationService.SearchParams;
@@ -91,10 +91,10 @@ public class CollectorApplicationController {
 
     @PostMapping(path = "/me/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApplicationResponse> uploadMyDocument(
-            @RequestParam("type") DocumentType type,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "documentNumber", required = false) String documentNumber,
-            @RequestParam(value = "expiryDate", required = false)
+            @RequestParam DocumentType type,
+            @RequestParam MultipartFile file,
+            @RequestParam(required = false) String documentNumber,
+            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate) {
         return ResponseEntity.ok(service.uploadMyDocument(type, file, documentNumber, expiryDate));
     }

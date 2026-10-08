@@ -11,31 +11,33 @@ import com.garbigo.auth.dto.ApplicationDtos.Option;
 import com.garbigo.auth.dto.ApplicationDtos.OptionsView;
 import com.garbigo.auth.dto.ApplicationDtos.PageResult;
 import com.garbigo.auth.dto.ApplicationDtos.ReferenceInput;
+import com.garbigo.auth.dto.ApplicationDtos.RequirementView;
 import com.garbigo.auth.dto.ApplicationDtos.StaffDetail;
 import com.garbigo.auth.dto.ApplicationDtos.StaffSummary;
 import com.garbigo.auth.dto.ApplicationDtos.StatsView;
 import com.garbigo.auth.dto.ApplicationDtos.StatusUpdateRequest;
 import com.garbigo.auth.dto.ApplicationDtos.UploadLimits;
 import com.garbigo.auth.dto.ApplicationDtos.VehicleOption;
+import com.garbigo.auth.enums.ApplicationStatus;
+import com.garbigo.auth.enums.CapacityUnit;
+import com.garbigo.auth.enums.DocumentReviewStatus;
+import com.garbigo.auth.enums.DocumentType;
+import com.garbigo.auth.enums.IdentityDocumentType;
+import com.garbigo.auth.enums.PayoutMethod;
+import com.garbigo.auth.enums.Role;
+import com.garbigo.auth.enums.ServiceType;
+import com.garbigo.auth.enums.VehicleType;
 import com.garbigo.auth.exception.CustomException;
-import com.garbigo.auth.model.ApplicationStatus;
-import com.garbigo.auth.model.CollectorApplication;
 import com.garbigo.auth.model.CollectorApplication.ApplicationDocument;
 import com.garbigo.auth.model.CollectorApplication.InternalNote;
 import com.garbigo.auth.model.CollectorApplication.StatusHistoryEntry;
-import com.garbigo.auth.model.DocumentReviewStatus;
-import com.garbigo.auth.model.DocumentType;
-import com.garbigo.auth.model.Role;
-import com.garbigo.auth.model.ServiceType;
+import com.garbigo.auth.model.CollectorApplication;
 import com.garbigo.auth.model.User;
-import com.garbigo.auth.model.VehicleType;
-import com.garbigo.auth.model.CapacityUnit;
 import com.garbigo.auth.repository.CollectorApplicationRepository;
 import com.garbigo.auth.repository.UserRepository;
 import com.garbigo.auth.util.Countries;
-import com.garbigo.auth.model.IdentityDocumentType;
-import com.garbigo.auth.model.PayoutMethod;
 import com.garbigo.auth.util.PhoneNumbers;
+
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +63,7 @@ import java.time.Year;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -130,20 +133,20 @@ public class CollectorApplicationService {
     public OptionsView options() {
         return new OptionsView(
                 Countries.all().stream().map(c -> new CountryOption(c.code(), c.name(), c.dialCode())).toList(),
-                java.util.Arrays.stream(IdentityDocumentType.values()).map(t -> new Option(t.name(), t.label())).toList(),
-                java.util.Arrays.stream(PayoutMethod.values()).map(m -> new Option(m.name(), m.label())).toList(),
-                java.util.Arrays.stream(VehicleType.values())
+                Arrays.stream(IdentityDocumentType.values()).map(t -> new Option(t.name(), t.label())).toList(),
+                Arrays.stream(PayoutMethod.values()).map(m -> new Option(m.name(), m.label())).toList(),
+                Arrays.stream(VehicleType.values())
                         .map(v -> new VehicleOption(v.name(), v.label(), v.motorized())).toList(),
-                java.util.Arrays.stream(ServiceType.values()).map(s -> new Option(s.name(), s.label())).toList(),
-                java.util.Arrays.stream(CapacityUnit.values()).map(u -> new Option(u.name(), u.label())).toList(),
-                java.util.Arrays.stream(DayOfWeek.values())
+                Arrays.stream(ServiceType.values()).map(s -> new Option(s.name(), s.label())).toList(),
+                Arrays.stream(CapacityUnit.values()).map(u -> new Option(u.name(), u.label())).toList(),
+                Arrays.stream(DayOfWeek.values())
                         .map(d -> new Option(d.name(), d.getDisplayName(TextStyle.FULL, Locale.ENGLISH))).toList(),
-                java.util.Arrays.stream(ApplicationStatus.values()).map(s -> new Option(s.name(), s.label())).toList(),
+                Arrays.stream(ApplicationStatus.values()).map(s -> new Option(s.name(), s.label())).toList(),
                 new UploadLimits(maxFileMb, "PDF, JPG or PNG"),
                 mapper.baselineRequirements());
     }
 
-    public List<com.garbigo.auth.dto.ApplicationDtos.RequirementView> requirements(VehicleType vehicle,
+    public List<RequirementView> requirements(VehicleType vehicle,
                                                                                    Set<ServiceType> services,
                                                                                    IdentityDocumentType idType) {
         CollectorApplication probe = new CollectorApplication();
@@ -290,7 +293,7 @@ public class CollectorApplicationService {
             throw new CustomException("Almost there. Before you submit: " + String.join("; ", progress.missing()) + ".");
         }
         if (idUsedElsewhere(app)) {
-            throw new CustomException("This National ID number is already used in another application.");
+            throw new CustomException("This ID number is already used in another application.");
         }
 
         refreshApplicant(app, user);

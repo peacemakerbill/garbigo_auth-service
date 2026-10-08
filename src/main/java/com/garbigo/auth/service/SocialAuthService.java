@@ -3,7 +3,7 @@ package com.garbigo.auth.service;
 import com.garbigo.auth.dto.AuthResponse;
 import com.garbigo.auth.dto.SocialLoginRequest;
 import com.garbigo.auth.exception.CustomException;
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.UserRepository;
 import com.garbigo.auth.security.JwtUtil;

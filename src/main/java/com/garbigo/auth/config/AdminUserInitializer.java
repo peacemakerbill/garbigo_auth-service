@@ -1,6 +1,6 @@
 package com.garbigo.auth.config;
 
-import com.garbigo.auth.model.Role;
+import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;

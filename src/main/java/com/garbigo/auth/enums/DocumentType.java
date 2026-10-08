@@ -1,4 +1,4 @@
-package com.garbigo.auth.model;
+package com.garbigo.auth.enums;
 
 public enum DocumentType {
 
