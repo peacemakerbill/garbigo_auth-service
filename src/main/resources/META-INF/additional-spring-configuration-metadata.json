@@ -1,72 +1,122 @@
-{"properties": [
-  {
-    "name": "rate-limit.requests-per-minute",
-    "type": "java.lang.String",
-    "description": "A description for 'rate-limit.requests-per-minute'"
-  },
-  {
-    "name": "rabbitmq.queue.user-created",
-    "type": "java.lang.String",
-    "description": "A description for 'rabbitmq.queue.user-created'"
-  },
-  {
-    "name": "github.client-id",
-    "type": "java.lang.String",
-    "description": "OAuth Client ID for the GitHub OAuth App used for GitHub sign up / sign in."
-  },
-  {
-    "name": "github.client-secret",
-    "type": "java.lang.String",
-    "description": "OAuth Client Secret for the GitHub OAuth App used for GitHub sign up / sign in."
-  },
-  {
-    "name": "cloudinary.cloud-name",
-    "type": "java.lang.String",
-    "description": "Cloudinary account cloud name, used for uploading and serving profile pictures."
-  },
-  {
-    "name": "cloudinary.api-key",
-    "type": "java.lang.String",
-    "description": "Cloudinary API key for the account used to upload profile pictures."
-  },
-  {
-    "name": "cloudinary.api-secret",
-    "type": "java.lang.String",
-    "description": "Cloudinary API secret for the account used to upload profile pictures."
-  },
-  {
-    "name": "jwt.secret",
-    "type": "java.lang.String",
-    "description": "Secret key used to sign and verify the app's own JWT access tokens."
-  },
-  {
-    "name": "jwt.expiration",
-    "type": "java.lang.Long",
-    "description": "Lifetime of an issued JWT access token, in seconds."
-  },
-  {
-    "name": "app.url",
-    "type": "java.lang.String",
-    "description": "Base URL of the client application, used to build links in verification and password-reset emails."
-  },
-  {
-    "name": "google.client-id",
-    "type": "java.lang.String",
-    "description": "OAuth Client ID for the Google Sign-In app used to verify Google ID tokens on sign up / sign in."
-  },
-  {
-    "name": "facebook.app-id",
-    "type": "java.lang.String",
-    "description": "Facebook App ID used to verify Facebook access tokens on sign up / sign in."
-  },
-  {
-    "name": "facebook.app-secret",
-    "type": "java.lang.String",
-    "description": "Facebook App Secret used to verify Facebook access tokens on sign up / sign in."
-  },
-  {
-    "name": "internal.api-key",
-    "type": "java.lang.String",
-    "description": "Shared secret other microservices send as the X-Internal-Api-Key header on Feign calls into this service."
-  }
-]}
+{
+  "properties": [
+    {
+      "name": "rate-limit.requests-per-minute",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of requests allowed per minute before rate limiting applies.",
+      "defaultValue": 20
+    },
+    {
+      "name": "rabbitmq.queue.user-created",
+      "type": "java.lang.String",
+      "description": "Name of the RabbitMQ queue that receives a message whenever a new user signs up.",
+      "defaultValue": "user-created-queue"
+    },
+    {
+      "name": "github.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth Client ID for the GitHub OAuth App used for GitHub sign up / sign in."
+    },
+    {
+      "name": "github.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth Client Secret for the GitHub OAuth App used for GitHub sign up / sign in."
+    },
+    {
+      "name": "cloudinary.cloud-name",
+      "type": "java.lang.String",
+      "description": "Cloudinary account cloud name, used for uploading and serving profile pictures."
+    },
+    {
+      "name": "cloudinary.api-key",
+      "type": "java.lang.String",
+      "description": "Cloudinary API key for the account used to upload profile pictures."
+    },
+    {
+      "name": "cloudinary.api-secret",
+      "type": "java.lang.String",
+      "description": "Cloudinary API secret for the account used to upload profile pictures."
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key used to sign and verify the app's own JWT access tokens."
+    },
+    {
+      "name": "jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "Lifetime of an issued JWT access token, in seconds.",
+      "defaultValue": 2592000
+    },
+    {
+      "name": "app.url",
+      "type": "java.lang.String",
+      "description": "Base URL of the client application, used to build links in verification and password-reset emails."
+    },
+    {
+      "name": "google.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth Client ID for the Google Sign-In app used to verify Google ID tokens on sign up / sign in."
+    },
+    {
+      "name": "facebook.app-id",
+      "type": "java.lang.String",
+      "description": "Facebook App ID used to verify Facebook access tokens on sign up / sign in."
+    },
+    {
+      "name": "facebook.app-secret",
+      "type": "java.lang.String",
+      "description": "Facebook App Secret used to verify Facebook access tokens on sign up / sign in."
+    },
+    {
+      "name": "internal.api-key",
+      "type": "java.lang.String",
+      "description": "Shared secret other microservices send as the X-Internal-Api-Key header on Feign calls into this service."
+    },
+    {
+      "name": "google.drive.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth Client ID of the Google Cloud project used to store collector application documents in Google Drive."
+    },
+    {
+      "name": "google.drive.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth Client Secret paired with the Google Drive client ID."
+    },
+    {
+      "name": "google.drive.refresh-token",
+      "type": "java.lang.String",
+      "description": "Long-lived OAuth refresh token for the Google account whose Drive holds applicant documents. Keep the OAuth consent screen published so it does not expire."
+    },
+    {
+      "name": "google.drive.root-folder-id",
+      "type": "java.lang.String",
+      "description": "Optional ID of an existing Drive folder created by this service. Leave blank to let the service create and find its own folder.",
+      "defaultValue": ""
+    },
+    {
+      "name": "google.drive.root-folder-name",
+      "type": "java.lang.String",
+      "description": "Name of the Drive folder that holds one subfolder per collector application.",
+      "defaultValue": "Garbigo Collector Applications"
+    },
+    {
+      "name": "collector-application.max-file-mb",
+      "type": "java.lang.Integer",
+      "description": "Largest document an applicant can upload, in megabytes.",
+      "defaultValue": 5
+    },
+    {
+      "name": "collector-application.review-days",
+      "type": "java.lang.Integer",
+      "description": "Number of working days promised to applicants in emails and next-step messages.",
+      "defaultValue": 3
+    },
+    {
+      "name": "collector-application.page-path",
+      "type": "java.lang.String",
+      "description": "Path on the client application that the buttons in collector application emails open, appended to app.url.",
+      "defaultValue": "/collector/application"
+    }
+  ]
+}
