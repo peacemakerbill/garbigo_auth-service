@@ -36,6 +36,7 @@ public class SocialAuthService {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final UsernameGenerator usernameGenerator;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${google.client-id}")
@@ -53,9 +54,10 @@ public class SocialAuthService {
     @Value("${github.client-secret}")
     private String githubClientSecret;
 
-    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil) {
+    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil, UsernameGenerator usernameGenerator) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.usernameGenerator = usernameGenerator;
     }
 
     public AuthResponse googleLogin(SocialLoginRequest request) {
@@ -76,7 +78,7 @@ public class SocialAuthService {
             String email = payload.getEmail();
             String name = (String) payload.get("name");
 
-            User user = findOrCreateSocialUser(email, name != null ? name : "Google User");
+            User user = findOrCreateSocialUser(email, name != null ? name : "Google User", null);
             user.setVerified(true);
             userRepository.save(user);
 
@@ -127,7 +129,7 @@ public class SocialAuthService {
                         + "an email to your Facebook account and allow email access, or sign up with email instead.");
             }
 
-            User user = findOrCreateSocialUser(email, name != null ? name : "Facebook User");
+            User user = findOrCreateSocialUser(email, name != null ? name : "Facebook User", null);
             user.setVerified(true);
             userRepository.save(user);
 
@@ -171,7 +173,7 @@ public class SocialAuthService {
                         + "sign in. Please verify an email on GitHub and try again.");
             }
 
-            User user = findOrCreateSocialUser(email, name != null ? name : login);
+            User user = findOrCreateSocialUser(email, name != null ? name : login, login);
             user.setVerified(true);
             userRepository.save(user);
 
@@ -228,22 +230,27 @@ public class SocialAuthService {
                 .orElse(null);
     }
 
-    private User findOrCreateSocialUser(String email, String name) {
-        return userRepository.findByEmail(email)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setEmail(email);
+    private User findOrCreateSocialUser(String email, String name, String preferredUsername) {
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setEmail(email);
 
-                    String[] nameParts = name.split(" ");
-                    newUser.setFirstName(nameParts[0]);
+            String[] nameParts = name.split(" ");
+            newUser.setFirstName(nameParts[0]);
 
-                    if (nameParts.length > 1) {
-                        newUser.setLastName(nameParts[nameParts.length - 1]);
-                    }
+            if (nameParts.length > 1) {
+                newUser.setLastName(nameParts[nameParts.length - 1]);
+            }
 
-                    newUser.setRole(Role.CLIENT);
-                    return userRepository.save(newUser);
-                });
+            newUser.setRole(Role.CLIENT);
+            return newUser;
+        });
+
+        if (user.getDisplayUsername() == null) {
+            user.setDisplayUsername(usernameGenerator.generate(preferredUsername, name, email));
+        }
+
+        return userRepository.save(user);
     }
 
     private AuthResponse buildAuthResponse(User user) {

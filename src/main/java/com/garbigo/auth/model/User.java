@@ -3,7 +3,6 @@ package com.garbigo.auth.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.garbigo.auth.enums.Role;
-
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -30,16 +29,8 @@ public class User implements UserDetails {
 
     @Field("username")
     @JsonProperty("username")
-    @Indexed(unique = true, sparse = true)
+    @Indexed(unique = true, partialFilter = "{ 'username': { '$type': 'string' } }")
     private String displayUsername;
-
-    public void setDisplayUsername(String displayUsername) {
-        if (displayUsername == null || displayUsername.trim().isEmpty()) {
-            this.displayUsername = null;
-        } else {
-            this.displayUsername = displayUsername.trim();
-        }
-    }
 
     private String firstName;
     private String middleName;
@@ -48,7 +39,7 @@ public class User implements UserDetails {
     @Indexed(unique = true)
     private String email;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, partialFilter = "{ 'phoneNumber': { '$type': 'string' } }")
     private String phoneNumber;
 
     private String homeAddress;
@@ -74,6 +65,22 @@ public class User implements UserDetails {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    public void setPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
+            this.phoneNumber = null;
+        } else {
+            this.phoneNumber = phoneNumber.trim();
+        }
+    }
+
+    public void setDisplayUsername(String displayUsername) {
+        if (displayUsername == null || displayUsername.trim().isEmpty()) {
+            this.displayUsername = null;
+        } else {
+            this.displayUsername = displayUsername.trim();
+        }
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
