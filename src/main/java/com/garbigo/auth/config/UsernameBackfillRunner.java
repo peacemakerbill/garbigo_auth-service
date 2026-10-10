@@ -3,11 +3,13 @@ package com.garbigo.auth.config;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.UserRepository;
 import com.garbigo.auth.service.UsernameGenerator;
+import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -15,12 +17,14 @@ import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PreDestroy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Component
+@Order(0)
 public class UsernameBackfillRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(UsernameBackfillRunner.class);
@@ -74,7 +78,42 @@ public class UsernameBackfillRunner implements ApplicationRunner {
         }
     }
 
+    private void fixDuplicateUsernames() {
+        List<Document> pipeline = List.of(
+                new Document("$match", new Document("username", new Document("$type", "string"))),
+                new Document("$sort", new Document("_id", 1)),
+                new Document("$group", new Document("_id", "$username")
+                        .append("ids", new Document("$push", "$_id"))
+                        .append("n", new Document("$sum", 1))),
+                new Document("$match", new Document("n", new Document("$gt", 1))));
+
+        List<Document> groups = mongoTemplate.getCollection("users").aggregate(pipeline).into(new ArrayList<>());
+
+        for (Document group : groups) {
+            String duplicated = group.getString("_id");
+            List<Object> ids = group.getList("ids", Object.class);
+            for (int i = 1; i < ids.size(); i++) {
+                try {
+                    User user = mongoTemplate.findOne(Query.query(Criteria.where("_id").is(ids.get(i))), User.class);
+                    if (user == null) {
+                        continue;
+                    }
+                    String replacement = usernameGenerator.generate(null, buildFullName(user), user.getEmail());
+                    user.setDisplayUsername(replacement);
+                    userRepository.save(user);
+                    log.warn("Username '{}' was used by more than one user. User {} now has '{}'",
+                            duplicated, user.getId(), replacement);
+                } catch (Exception e) {
+                    log.error("Could not fix duplicate username '{}' for user {}: {}",
+                            duplicated, ids.get(i), e.getMessage());
+                }
+            }
+        }
+    }
+
     private void backfill() {
+        fixDuplicateUsernames();
+
         Query query = Query.query(new Criteria().orOperator(
                 Criteria.where("username").exists(false),
                 Criteria.where("username").is(null),
