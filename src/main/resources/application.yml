@@ -16,7 +16,7 @@ spring:
 
   data:
     mongodb:
-      auto-index-creation: true
+      auto-index-creation: false
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
