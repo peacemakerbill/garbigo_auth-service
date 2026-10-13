@@ -50,6 +50,56 @@ public class SocialService {
         return (User) authentication.getPrincipal();
     }
 
+    private static final int MAX_COMMENT_LENGTH = 1000;
+    private static final int MAX_TYPE_LENGTH = 30;
+
+    private String normalizeType(String targetType) {
+        if (targetType == null || targetType.isBlank()) {
+            return "USER";
+        }
+        String type = targetType.trim().toUpperCase();
+        if (type.length() > MAX_TYPE_LENGTH || !type.matches("[A-Z_]+")) {
+            throw new CustomException("That target type is not valid.");
+        }
+        return type;
+    }
+
+    private String requireTargetId(String targetId) {
+        if (targetId == null || targetId.isBlank()) {
+            throw new CustomException("Please tell us who or what you want to do this with.");
+        }
+        return targetId.trim();
+    }
+
+    private void requireAvailableUser(String userId) {
+        User target = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found"));
+        if (target.isArchived() || !target.isActive()) {
+            throw new CustomException("This user is not available right now.");
+        }
+    }
+
+    private String cleanComment(String comment) {
+        if (comment == null) {
+            return null;
+        }
+        String trimmed = comment.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        if (trimmed.length() > MAX_COMMENT_LENGTH) {
+            throw new CustomException("Your comment is too long. Please keep it under " + MAX_COMMENT_LENGTH
+                    + " characters.");
+        }
+        return trimmed;
+    }
+
+    private void requireValidRating(int rating) {
+        if (rating < 1 || rating > 5) {
+            throw new CustomException("Rating must be between 1 and 5");
+        }
+    }
+
     // ====================== PROFILE SUMMARY (Custom Format) ======================
     public UserSummaryDto getUserProfileSummary(String userId) {
         User user = userRepository.findById(userId)
@@ -97,10 +147,13 @@ public class SocialService {
     // ====================== FOLLOW ======================
     public void follow(String targetUserId) {
         User current = getCurrentUser();
+        targetUserId = requireTargetId(targetUserId);
 
         if (current.getId().equals(targetUserId)) {
             throw new CustomException("You cannot follow yourself");
         }
+
+        requireAvailableUser(targetUserId);
 
         boolean alreadyFollowing = followRepository.findByUserIdAndFollowerId(targetUserId, current.getId()).isPresent();
 
@@ -147,7 +200,15 @@ public class SocialService {
     // ====================== LIKE ======================
     public void like(String targetId, String targetType) {
         User current = getCurrentUser();
-        String type = targetType != null ? targetType.toUpperCase() : "USER";
+        targetId = requireTargetId(targetId);
+        String type = normalizeType(targetType);
+
+        if ("USER".equals(type)) {
+            if (current.getId().equals(targetId)) {
+                throw new CustomException("You cannot like yourself");
+            }
+            requireAvailableUser(targetId);
+        }
 
         boolean alreadyLiked = likeRepository.findByUserIdAndTargetIdAndTargetType(
                 current.getId(), targetId, type).isPresent();
@@ -165,7 +226,8 @@ public class SocialService {
 
     public void unlike(String targetId, String targetType) {
         User current = getCurrentUser();
-        String type = targetType != null ? targetType.toUpperCase() : "USER";
+        targetId = requireTargetId(targetId);
+        String type = normalizeType(targetType);
 
         boolean liked = likeRepository.findByUserIdAndTargetIdAndTargetType(
                 current.getId(), targetId, type).isPresent();
@@ -181,13 +243,13 @@ public class SocialService {
     public LikeCheckDto isLiked(String targetId, String targetType) {
         User current = getCurrentUser();
         boolean liked = likeRepository.findByUserIdAndTargetIdAndTargetType(
-                current.getId(), targetId, targetType != null ? targetType.toUpperCase() : "USER")
+                current.getId(), requireTargetId(targetId), normalizeType(targetType))
                 .isPresent();
         return new LikeCheckDto(liked);
     }
 
     public List<UserSummaryDto> getUsersWhoLiked(String targetId, String targetType) {
-        String type = targetType != null ? targetType.toUpperCase() : "USER";
+        String type = normalizeType(targetType);
 
         List<String> likerIds = likeRepository.findByTargetIdAndTargetType(targetId, type)
                 .stream()
@@ -200,17 +262,33 @@ public class SocialService {
     // ====================== REVIEW ======================
     public void addReview(String targetId, String targetType, SocialActionRequest request) {
         User current = getCurrentUser();
+        targetId = requireTargetId(targetId);
+        String type = normalizeType(targetType);
 
-        if (request.getRating() < 1 || request.getRating() > 5) {
-            throw new CustomException("Rating must be between 1 and 5");
+        if ("USER".equals(type)) {
+            if (current.getId().equals(targetId)) {
+                throw new CustomException("You cannot review yourself");
+            }
+            requireAvailableUser(targetId);
+        }
+
+        requireValidRating(request.getRating());
+        String comment = cleanComment(request.getComment());
+
+        final String finalTargetId = targetId;
+        boolean alreadyReviewed = reviewRepository.findByTargetIdAndTargetType(finalTargetId, type).stream()
+                .anyMatch(r -> current.getId().equals(r.getUserId()));
+        if (alreadyReviewed) {
+            throw new CustomException("You have already reviewed this " + type.toLowerCase()
+                    + ". You can edit your existing review instead.");
         }
 
         Review review = new Review();
         review.setUserId(current.getId());
-        review.setTargetId(targetId);
-        review.setTargetType(targetType != null ? targetType.toUpperCase() : "USER");
+        review.setTargetId(finalTargetId);
+        review.setTargetType(type);
         review.setRating(request.getRating());
-        review.setComment(request.getComment());
+        review.setComment(comment);
         reviewRepository.save(review);
     }
 
@@ -223,12 +301,10 @@ public class SocialService {
             throw new CustomException("You can only edit your own review");
         }
 
-        if (request.getRating() < 1 || request.getRating() > 5) {
-            throw new CustomException("Rating must be between 1 and 5");
-        }
+        requireValidRating(request.getRating());
 
         review.setRating(request.getRating());
-        review.setComment(request.getComment());
+        review.setComment(cleanComment(request.getComment()));
         reviewRepository.save(review);
     }
 
@@ -246,7 +322,7 @@ public class SocialService {
 
     public List<ReviewResponseDto> getReviews(String targetId, String targetType) {
         List<Review> reviews = reviewRepository.findByTargetIdAndTargetType(
-                targetId, targetType != null ? targetType.toUpperCase() : "USER");
+                requireTargetId(targetId), normalizeType(targetType));
 
         if (reviews.isEmpty()) {
             return List.of();
@@ -281,7 +357,7 @@ public class SocialService {
     }
 
     public List<UserSummaryDto> getUsersWhoReviewed(String targetId, String targetType) {
-        String type = targetType != null ? targetType.toUpperCase() : "USER";
+        String type = normalizeType(targetType);
 
         List<String> reviewerIds = reviewRepository.findByTargetIdAndTargetType(targetId, type)
                 .stream()
