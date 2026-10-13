@@ -90,3 +90,10 @@ facebook:
 github:
   client-id: ${GITHUB_CLIENT_ID}
   client-secret: ${GITHUB_CLIENT_SECRET}
+
+logging:
+  level:
+    "[com.garbigo]": DEBUG
+    "[org.springframework.data.mongodb]": WARN
+    "[org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport]": ERROR
+    "[org.springframework.cloud.commons.util.InetUtils]": ERROR
