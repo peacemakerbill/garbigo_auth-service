@@ -248,6 +248,19 @@ public class SocialService {
         return new LikeCheckDto(liked);
     }
 
+    public List<UserSummaryDto> getUsersILiked() {
+        User current = getCurrentUser();
+
+        List<String> likedIds = likeRepository.findByUserIdAndTargetType(current.getId(), "USER")
+                .stream()
+                .sorted(java.util.Comparator.comparing(Like::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                .map(Like::getTargetId)
+                .collect(Collectors.toList());
+
+        return getUserSummaries(likedIds);
+    }
+
     public List<UserSummaryDto> getUsersWhoLiked(String targetId, String targetType) {
         String type = normalizeType(targetType);
 

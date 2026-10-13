@@ -74,6 +74,11 @@ public class SocialController {
         return ResponseEntity.ok(socialService.isLiked(targetId, targetType));
     }
 
+    @GetMapping("/liked-users")
+    public ResponseEntity<List<UserSummaryDto>> getUsersILiked() {
+        return ResponseEntity.ok(socialService.getUsersILiked());
+    }
+
     // ====================== Users Who Liked ======================
     @GetMapping("/likes/{targetId}")
     public ResponseEntity<List<UserSummaryDto>> getUsersWhoLiked(
