@@ -97,10 +97,17 @@ public class CollectorApplication {
     private String assignedToName;
 
     private String lastPublicNote;
+    private List<String> lastCorrections = new ArrayList<>();
+
+    private String previousApplicationId;
+    private String previousReferenceNumber;
+    private int attemptNumber = 1;
+    private Boolean reapplyAllowed;
     private int submissionCount;
     private Instant submittedAt;
     private Instant lastStatusChangeAt;
     private Instant decidedAt;
+    private Instant reapplyAvailableAt;
 
     @CreatedDate
     private Instant createdAt;
@@ -150,6 +157,9 @@ public class CollectorApplication {
         private String actorName;
         private String actorType;
         private Instant at;
+        private String eventType;
+        private List<String> items;
+        private boolean staffOnly;
     }
 
     @Data

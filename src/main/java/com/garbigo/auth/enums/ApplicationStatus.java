@@ -18,7 +18,7 @@ public enum ApplicationStatus {
     ACCEPTED("Accepted",
             "Congratulations. Your application is approved and your account is now a collector account."),
     REJECTED("Not approved",
-            "We could not approve this application. Read the note from our team to see why. You can apply again once it is sorted out."),
+            "We could not approve this application. Read the note and the list of corrections from our team. You can apply again unless the decision is final."),
     WITHDRAWN("Withdrawn",
             "You withdrew this application. You can start a new one any time.");
 

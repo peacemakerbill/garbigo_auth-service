@@ -73,7 +73,7 @@ app:
   url: ${APP_URL:http://localhost:3000}
 
   storage:
-    root: ${STORAGE_ROOT:/home/graham218/MyProjects/file-storage/Garbigo-Auth/}
+    root: ${STORAGE_ROOT:}
     applications-folder: ${STORAGE_APPLICATIONS_FOLDER:collector-applications}
     restrict-permissions: ${STORAGE_RESTRICT_PERMISSIONS:true}
 
@@ -165,6 +165,9 @@ collector-application:
   max-file-mb: ${COLLECTOR_APPLICATION_MAX_FILE_MB:5}
   review-days: ${COLLECTOR_APPLICATION_REVIEW_DAYS:3}
   page-path: ${COLLECTOR_APPLICATION_PAGE_PATH:/collector/application}
+  staff-page-path: ${COLLECTOR_APPLICATION_STAFF_PAGE_PATH:/admin/collector-applications}
+  reapply-cooldown-days: ${COLLECTOR_APPLICATION_REAPPLY_COOLDOWN_DAYS:0}
+  max-attempts: ${COLLECTOR_APPLICATION_MAX_ATTEMPTS:0}
 
 facebook:
   app-id: ${FACEBOOK_APP_ID}

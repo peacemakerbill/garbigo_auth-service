@@ -76,8 +76,7 @@
     {
       "name": "app.storage.root",
       "type": "java.lang.String",
-      "description": "Folder on the server (or a mounted NAS or Synology share) where uploaded collector application documents are saved. Created if it does not exist.",
-      "defaultValue": "/home/graham218/MyProjects/file-storage/Garbigo-Auth/"
+      "description": "Required for document uploads. Folder on the server (or a mounted NAS or Synology share) where collector application documents are saved. Created if it does not exist. No default."
     },
     {
       "name": "app.storage.applications-folder",
@@ -90,6 +89,24 @@
       "type": "java.lang.Boolean",
       "description": "Make new folders and files readable only by the user running the service.",
       "defaultValue": true
+    },
+    {
+      "name": "collector-application.staff-page-path",
+      "type": "java.lang.String",
+      "description": "Front end route staff open from the application resubmitted email. The application id is appended.",
+      "defaultValue": "/admin/collector-applications"
+    },
+    {
+      "name": "collector-application.reapply-cooldown-days",
+      "type": "java.lang.Integer",
+      "description": "Days a rejected applicant must wait before applying again. 0 means no wait.",
+      "defaultValue": 0
+    },
+    {
+      "name": "collector-application.max-attempts",
+      "type": "java.lang.Integer",
+      "description": "Most collector applications one person may make in total. 0 means no limit.",
+      "defaultValue": 0
     },
     {
       "name": "collector-application.max-file-mb",

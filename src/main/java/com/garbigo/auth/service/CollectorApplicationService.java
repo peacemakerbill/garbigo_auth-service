@@ -113,19 +113,22 @@ public class CollectorApplicationService {
     private final DiskStorageService storage;
     private final ApplicationEmailService emails;
     private final ApplicationMapper mapper;
+    private final ReapplyPolicy reapplyPolicy;
 
     @Value("${collector-application.max-file-mb:5}")
     private int maxFileMb;
 
     public CollectorApplicationService(CollectorApplicationRepository applications, UserRepository users,
                                        MongoTemplate mongo, DiskStorageService storage,
-                                       ApplicationEmailService emails, ApplicationMapper mapper) {
+                                       ApplicationEmailService emails, ApplicationMapper mapper,
+                                       ReapplyPolicy reapplyPolicy) {
         this.applications = applications;
         this.users = users;
         this.mongo = mongo;
         this.storage = storage;
         this.emails = emails;
         this.mapper = mapper;
+        this.reapplyPolicy = reapplyPolicy;
     }
 
     // ============================== OPTIONS ==============================
@@ -165,33 +168,31 @@ public class CollectorApplicationService {
         if (user.getRole() == Role.COLLECTOR) {
             return new MyApplicationResponse(latest.isPresent(), false,
                     "Your account is already a collector account. You do not need to apply again.",
+                    null, latest.map(CollectorApplication::getAttemptNumber).orElse(0),
                     latest.map(mapper::toApplicantResponse).orElse(null), List.of());
         }
         if (user.getRole() != Role.CLIENT) {
             return new MyApplicationResponse(false, false,
-                    "Collector applications are only for customer accounts.", null, List.of());
+                    "Collector applications are only for customer accounts.", null, 0, null, List.of());
         }
         if (latest.isEmpty()) {
             return new MyApplicationResponse(false, true,
                     "Become a Garbigo collector. The application takes about 10 minutes, and you can save your progress and come back any time.",
-                    null, mapper.baselineRequirements());
+                    null, 0, null, mapper.baselineRequirements());
         }
         CollectorApplication app = latest.get();
-        boolean canApply = app.getStatus().isTerminal();
-        String message = switch (app.getStatus()) {
-            case REJECTED -> "Your last application was not approved. Read the note from our team, then you can apply again.";
-            case WITHDRAWN -> "You withdrew your last application. You can start a new one any time.";
-            default -> app.getStatus().applicantMessage();
-        };
-        return new MyApplicationResponse(true, canApply, message, mapper.toApplicantResponse(app),
-                canApply ? mapper.baselineRequirements() : List.of());
+        ReapplyPolicy.Decision reapply = reapplyPolicy.evaluate(app, Instant.now());
+        boolean canApply = reapply.allowed();
+        String message = reapply.applicable() ? reapply.message() : app.getStatus().applicantMessage();
+        return new MyApplicationResponse(true, canApply, message, reapply.availableAt(), app.getAttemptNumber(),
+                mapper.toApplicantResponse(app), canApply ? mapper.baselineRequirements() : List.of());
     }
 
     public List<MyApplicationSummary> myHistory() {
         User user = currentUser();
         return applications.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                 .map(a -> new MyApplicationSummary(a.getId(), a.getReferenceNumber(),
-                        mapper.statusInfo(a.getStatus()), a.getSubmittedAt(), a.getCreatedAt()))
+                        mapper.statusInfo(a.getStatus()), a.getAttemptNumber(), a.getSubmittedAt(), a.getCreatedAt()))
                 .toList();
     }
 
@@ -202,8 +203,25 @@ public class CollectorApplicationService {
         assertEditable(app);
         applyDetails(app, input);
         refreshApplicant(app, user);
+        trackDetailsSaved(app, user);
         applications.save(app);
         return mapper.toApplicantResponse(app);
+    }
+
+    public ApplicationResponse reapply() {
+        User user = currentUser();
+        assertCanApply(user);
+        CollectorApplication previous = applications.findFirstByUserIdOrderByCreatedAtDesc(user.getId())
+                .orElseThrow(() -> new CustomException("You don't have an earlier application. Save your details to start one."));
+        if (!previous.getStatus().isTerminal()) {
+            throw new CustomException("You already have an application in progress. Open it to continue.");
+        }
+        ReapplyPolicy.Decision decision = reapplyPolicy.evaluate(previous, Instant.now());
+        if (!decision.allowed()) {
+            throw new CustomException(decision.message() == null
+                    ? "A new application can't be started right now." : decision.message());
+        }
+        return mapper.toApplicantResponse(newDraft(user, previous));
     }
 
     public ApplicationResponse uploadMyDocument(DocumentType type, MultipartFile file, String documentNumber,
@@ -234,11 +252,7 @@ public class CollectorApplicationService {
 
         UploadedFileRules.ValidatedFile valid = UploadedFileRules.validate(file, type, maxFileMb);
 
-        String folder = app.getStorageFolder();
-        if (folder == null) {
-            folder = storage.applicationFolder(app.getReferenceNumber() + " - " + safeName(app.getApplicantName()));
-            app.setStorageFolder(folder);
-        }
+        String folder = ensureStorageFolder(app);
 
         String storedName = type.name() + "_" + UUID.randomUUID().toString().substring(0, 8) + "." + valid.extension();
         DiskStorageService.StoredFile stored = storage.upload(folder, storedName, valid.bytes());
@@ -260,6 +274,8 @@ public class CollectorApplicationService {
             docs.remove(existing);
         }
         docs.add(doc);
+        track(app, "DOCUMENT", (existing == null ? "Document uploaded: " : "Document replaced: ") + type.label(),
+                null, null, user, "APPLICANT", false);
         applications.save(app);
         storage.deleteQuietly(oldFile);
         return mapper.toApplicantResponse(app);
@@ -275,6 +291,7 @@ public class CollectorApplicationService {
             throw new CustomException("This document has already been verified, so it can't be removed.");
         }
         app.getDocuments().remove(doc);
+        track(app, "DOCUMENT", "Document removed: " + doc.getType().label(), null, null, user, "APPLICANT", false);
         applications.save(app);
         storage.deleteQuietly(doc.getStorageFile());
         return mapper.toApplicantResponse(app);
@@ -301,10 +318,16 @@ public class CollectorApplicationService {
         }
         app.setSubmissionCount(app.getSubmissionCount() + 1);
         app.setLastPublicNote(null);
+        app.setLastCorrections(new ArrayList<>());
         moveTo(app, ApplicationStatus.SUBMITTED, resubmission ? "Resubmitted with updates" : "Application submitted",
                 null, user, "APPLICANT");
         applications.save(app);
         notifyApplicant(app, ApplicationStatus.SUBMITTED, null, null);
+        if (resubmission && app.getAssignedToId() != null) {
+            users.findById(app.getAssignedToId()).ifPresent(reviewer ->
+                    CompletableFuture.runAsync(() -> emails.sendStaffResubmitted(app, reviewer.getEmail(),
+                            reviewer.getFirstName())));
+        }
         return mapper.toApplicantResponse(app);
     }
 
@@ -430,8 +453,12 @@ public class CollectorApplicationService {
         if (app.getStatus().isTerminal() || app.getStatus() == ApplicationStatus.DRAFT) {
             throw new CustomException("This application can't be assigned right now.");
         }
+        boolean newAssignee = !staff.getId().equals(app.getAssignedToId());
         app.setAssignedToId(staff.getId());
         app.setAssignedToName(displayName(staff));
+        if (newAssignee) {
+            track(app, "ASSIGNMENT", "Assigned to a reviewer", null, null, staff, "STAFF", false);
+        }
         boolean started = app.getStatus() == ApplicationStatus.SUBMITTED;
         if (started) {
             moveTo(app, ApplicationStatus.PROCESSING, "Review started", null, staff, "STAFF");
@@ -459,6 +486,8 @@ public class CollectorApplicationService {
                     + " and can't be moved to " + next.label().toLowerCase(Locale.ENGLISH) + "."
                     + (allowed.isEmpty() ? "" : " You can move it to: " + allowed + "."));
         }
+        List<String> staffCorrections = request.corrections() == null ? List.of() : cleanList(request.corrections());
+        boolean allowReapply = request.allowReapply() == null || request.allowReapply();
         if ((next == ApplicationStatus.REJECTED || next == ApplicationStatus.MORE_INFO_NEEDED)
                 && (note == null || note.length() < 10)) {
             throw new CustomException(next == ApplicationStatus.REJECTED
@@ -479,17 +508,28 @@ public class CollectorApplicationService {
         }
 
         List<String> attention = null;
-        if (next == ApplicationStatus.MORE_INFO_NEEDED) {
-            attention = app.getDocuments().stream()
+        if (next == ApplicationStatus.MORE_INFO_NEEDED || next == ApplicationStatus.REJECTED) {
+            List<String> merged = new ArrayList<>(staffCorrections);
+            app.getDocuments().stream()
                     .filter(d -> d.getReviewStatus() == DocumentReviewStatus.REJECTED)
                     .map(d -> d.getType().label() + (d.getReviewNote() == null ? "" : ": " + d.getReviewNote()))
-                    .toList();
+                    .filter(line -> !merged.contains(line))
+                    .forEach(merged::add);
+            if (next == ApplicationStatus.REJECTED && allowReapply && merged.isEmpty()) {
+                throw new CustomException("Please list what the applicant should correct (add at least one correction), "
+                        + "or mark the decision as final so they are not invited to apply again.");
+            }
+            attention = merged;
+            app.setLastCorrections(new ArrayList<>(merged));
         }
 
-        moveTo(app, next, titleFor(next), note, staff, "STAFF");
+        moveTo(app, next, titleFor(next), note, staff, "STAFF", attention);
         app.setLastPublicNote(note);
         if (next == ApplicationStatus.REJECTED) {
-            app.setDecidedAt(Instant.now());
+            Instant decided = Instant.now();
+            app.setDecidedAt(decided);
+            app.setReapplyAllowed(allowReapply);
+            app.setReapplyAvailableAt(allowReapply ? reapplyPolicy.availableAfter(decided) : null);
         }
         if (app.getAssignedToId() == null) {
             app.setAssignedToId(staff.getId());
@@ -518,6 +558,10 @@ public class CollectorApplicationService {
         doc.setReviewedById(staff.getId());
         doc.setReviewedByName(displayName(staff));
         doc.setReviewedAt(Instant.now());
+
+        track(app, "REVIEW", (request.status() == DocumentReviewStatus.VERIFIED
+                        ? "Document verified: " : "Document needs replacing: ") + doc.getType().label(),
+                request.status() == DocumentReviewStatus.VERIFIED ? null : note, null, staff, "STAFF", false);
 
         boolean started = false;
         if (app.getStatus() == ApplicationStatus.SUBMITTED) {
@@ -651,13 +695,139 @@ public class CollectorApplicationService {
         if (latest.isPresent() && !latest.get().getStatus().isTerminal()) {
             return latest.get();
         }
+        if (latest.isPresent()) {
+            ReapplyPolicy.Decision decision = reapplyPolicy.evaluate(latest.get(), Instant.now());
+            if (decision.applicable() && !decision.allowed()) {
+                throw new CustomException(decision.message());
+            }
+        }
+        return newDraft(user, latest.orElse(null));
+    }
+
+    private CollectorApplication newDraft(User user, CollectorApplication previous) {
         CollectorApplication app = new CollectorApplication();
         app.setReferenceNumber(nextReference());
         app.setUserId(user.getId());
         app.setStatus(ApplicationStatus.DRAFT);
         refreshApplicant(app, user);
-        addHistory(app, null, ApplicationStatus.DRAFT, "Application started", null, user, "APPLICANT");
-        return applications.save(app);
+
+        if (previous == null) {
+            addHistory(app, null, ApplicationStatus.DRAFT, "Application started", null, user, "APPLICANT", "STATUS",
+                    null, false);
+            return applications.save(app);
+        }
+
+        app.setAttemptNumber(previous.getAttemptNumber() + 1);
+        app.setPreviousApplicationId(previous.getId());
+        app.setPreviousReferenceNumber(previous.getReferenceNumber());
+        copyDetails(previous, app);
+        app.setLastPublicNote(previous.getLastPublicNote());
+        app.setLastCorrections(previous.getLastCorrections() == null
+                ? new ArrayList<>() : new ArrayList<>(previous.getLastCorrections()));
+
+        addHistory(app, null, ApplicationStatus.DRAFT, "New application started (attempt " + app.getAttemptNumber() + ")",
+                "Based on " + previous.getReferenceNumber(), user, "APPLICANT", "REAPPLY", null, false);
+
+        List<String> carried = carryOverDocuments(previous, app);
+        if (!carried.isEmpty()) {
+            addHistory(app, null, ApplicationStatus.DRAFT, "Verified documents carried over",
+                    "Copied from " + previous.getReferenceNumber() + ". They do not need to be uploaded again.",
+                    user, "APPLICANT", "DOCUMENT", carried, false);
+        }
+
+        CollectorApplication saved = applications.save(app);
+        CompletableFuture.runAsync(() -> emails.sendReapplicationStarted(saved, previous.getReferenceNumber(),
+                saved.getLastCorrections(), carried.size()));
+        return saved;
+    }
+
+    private String ensureStorageFolder(CollectorApplication app) {
+        String folder = app.getStorageFolder();
+        if (folder == null) {
+            folder = storage.applicationFolder(app.getReferenceNumber() + " - " + safeName(app.getApplicantName()));
+            app.setStorageFolder(folder);
+        }
+        return folder;
+    }
+
+    private void copyDetails(CollectorApplication from, CollectorApplication to) {
+        to.setIdType(from.getIdType());
+        to.setIdNumber(from.getIdNumber());
+        to.setTaxId(from.getTaxId());
+        to.setDateOfBirth(from.getDateOfBirth());
+        to.setAlternatePhone(from.getAlternatePhone());
+        to.setCountryCode(from.getCountryCode());
+        to.setRegion(from.getRegion());
+        to.setCity(from.getCity());
+        to.setPostalCode(from.getPostalCode());
+        to.setPhysicalAddress(from.getPhysicalAddress());
+        to.setTimeZone(from.getTimeZone());
+        to.setServiceTypes(from.getServiceTypes() == null ? new LinkedHashSet<>() : new LinkedHashSet<>(from.getServiceTypes()));
+        to.setVehicleType(from.getVehicleType());
+        to.setVehicleRegistration(from.getVehicleRegistration());
+        to.setCapacityValue(from.getCapacityValue());
+        to.setCapacityUnit(from.getCapacityUnit());
+        to.setServiceAreas(from.getServiceAreas() == null ? new ArrayList<>() : new ArrayList<>(from.getServiceAreas()));
+        to.setMaxTravelDistanceKm(from.getMaxTravelDistanceKm());
+        to.setHelpersCount(from.getHelpersCount());
+        to.setAvailableDays(from.getAvailableDays() == null ? new LinkedHashSet<>() : new LinkedHashSet<>(from.getAvailableDays()));
+        to.setShiftStart(from.getShiftStart());
+        to.setShiftEnd(from.getShiftEnd());
+        to.setAvailableForEmergency(from.getAvailableForEmergency());
+        to.setYearsOfExperience(from.getYearsOfExperience());
+        to.setExperienceSummary(from.getExperienceSummary());
+        to.setLanguages(from.getLanguages() == null ? new ArrayList<>() : new ArrayList<>(from.getLanguages()));
+        to.setMotivation(from.getMotivation());
+        to.setPayoutMethod(from.getPayoutMethod());
+        to.setPayoutProvider(from.getPayoutProvider());
+        to.setPayoutAccountNumber(from.getPayoutAccountNumber());
+        to.setPayoutAccountName(from.getPayoutAccountName());
+        to.setEmergencyContact(from.getEmergencyContact());
+        to.setReferences(from.getReferences() == null ? new ArrayList<>() : new ArrayList<>(from.getReferences()));
+    }
+
+    private List<String> carryOverDocuments(CollectorApplication from, CollectorApplication to) {
+        List<String> carried = new ArrayList<>();
+        if (from.getDocuments() == null) {
+            return carried;
+        }
+        for (ApplicationDocument old : from.getDocuments()) {
+            boolean expired = old.getExpiryDate() != null && old.getExpiryDate().isBefore(LocalDate.now());
+            if (old.getReviewStatus() != DocumentReviewStatus.VERIFIED || expired || old.getStorageFile() == null) {
+                continue;
+            }
+            try {
+                byte[] bytes = storage.download(old.getStorageFile());
+                String extension = "bin";
+                int dot = old.getStorageFile().lastIndexOf('.');
+                if (dot >= 0 && old.getStorageFile().substring(dot + 1).matches("[A-Za-z0-9]{1,5}")) {
+                    extension = old.getStorageFile().substring(dot + 1);
+                }
+                String name = old.getType().name() + "_" + UUID.randomUUID().toString().substring(0, 8) + "." + extension;
+                DiskStorageService.StoredFile stored = storage.upload(ensureStorageFolder(to), name, bytes);
+
+                ApplicationDocument copy = new ApplicationDocument();
+                copy.setId(UUID.randomUUID().toString());
+                copy.setType(old.getType());
+                copy.setStorageFile(stored.path());
+                copy.setFileName(old.getFileName());
+                copy.setMimeType(old.getMimeType());
+                copy.setSizeBytes(old.getSizeBytes());
+                copy.setDocumentNumber(old.getDocumentNumber());
+                copy.setExpiryDate(old.getExpiryDate());
+                copy.setUploadedAt(old.getUploadedAt());
+                copy.setReviewStatus(DocumentReviewStatus.VERIFIED);
+                copy.setReviewedById(old.getReviewedById());
+                copy.setReviewedByName(old.getReviewedByName());
+                copy.setReviewedAt(old.getReviewedAt());
+                to.getDocuments().add(copy);
+                carried.add(old.getType().label());
+            } catch (RuntimeException e) {
+                log.warn("APPLICATION: could not carry over {} from {} to {}", old.getType(),
+                        from.getReferenceNumber(), to.getReferenceNumber());
+            }
+        }
+        return carried;
     }
 
     private String nextReference() {
@@ -679,14 +849,38 @@ public class CollectorApplicationService {
 
     private void moveTo(CollectorApplication app, ApplicationStatus to, String title, String note, User actor,
                         String actorType) {
+        moveTo(app, to, title, note, actor, actorType, null);
+    }
+
+    private void moveTo(CollectorApplication app, ApplicationStatus to, String title, String note, User actor,
+                        String actorType, List<String> items) {
         ApplicationStatus from = app.getStatus();
         app.setStatus(to);
         app.setLastStatusChangeAt(Instant.now());
-        addHistory(app, from, to, title, note, actor, actorType);
+        addHistory(app, from, to, title, note, actor, actorType, "STATUS", items, false);
+    }
+
+    private void track(CollectorApplication app, String type, String title, String note, List<String> items,
+                       User actor, String actorType, boolean staffOnly) {
+        addHistory(app, app.getStatus(), app.getStatus(), title, note, actor, actorType, type, items, staffOnly);
+    }
+
+    private void trackDetailsSaved(CollectorApplication app, User user) {
+        List<StatusHistoryEntry> history = app.getHistory();
+        if (!history.isEmpty()) {
+            StatusHistoryEntry last = history.get(history.size() - 1);
+            if ("DETAILS".equals(last.getEventType()) && user.getId().equals(last.getActorId())
+                    && last.getAt() != null && Duration.between(last.getAt(), Instant.now()).toMinutes() < 30) {
+                last.setAt(Instant.now());
+                return;
+            }
+        }
+        track(app, "DETAILS", "Details updated", null, null, user, "APPLICANT", false);
     }
 
     private void addHistory(CollectorApplication app, ApplicationStatus from, ApplicationStatus to, String title,
-                            String note, User actor, String actorType) {
+                            String note, User actor, String actorType, String eventType, List<String> items,
+                            boolean staffOnly) {
         StatusHistoryEntry entry = new StatusHistoryEntry();
         entry.setFromStatus(from);
         entry.setToStatus(to);
@@ -696,6 +890,9 @@ public class CollectorApplicationService {
         entry.setActorName(displayName(actor));
         entry.setActorType(actorType);
         entry.setAt(Instant.now());
+        entry.setEventType(eventType);
+        entry.setItems(items == null || items.isEmpty() ? null : new ArrayList<>(items));
+        entry.setStaffOnly(staffOnly);
         app.getHistory().add(entry);
     }
 
@@ -711,6 +908,7 @@ public class CollectorApplicationService {
         note.setAuthorName(displayName(author));
         note.setAt(Instant.now());
         app.getInternalNotes().add(note);
+        track(app, "NOTE", "Internal note added", null, null, author, "STAFF", true);
     }
 
     private void notifyApplicant(CollectorApplication app, ApplicationStatus status, String note, List<String> items) {

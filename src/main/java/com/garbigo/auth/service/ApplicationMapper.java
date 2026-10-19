@@ -44,11 +44,14 @@ public class ApplicationMapper {
 
     private final int maxFileMb;
     private final int reviewDays;
+    private final ReapplyPolicy reapplyPolicy;
 
     public ApplicationMapper(@Value("${collector-application.max-file-mb:5}") int maxFileMb,
-                             @Value("${collector-application.review-days:3}") int reviewDays) {
+                             @Value("${collector-application.review-days:3}") int reviewDays,
+                             ReapplyPolicy reapplyPolicy) {
         this.maxFileMb = maxFileMb;
         this.reviewDays = reviewDays;
+        this.reapplyPolicy = reapplyPolicy;
     }
 
     public StatusInfo statusInfo(ApplicationStatus status) {
@@ -124,13 +127,17 @@ public class ApplicationMapper {
         }
         List<TimelineEntry> list = new ArrayList<>();
         for (StatusHistoryEntry h : a.getHistory()) {
+            if (h.isStaffOnly() && !staff) {
+                continue;
+            }
             String actor;
             if (staff) {
                 actor = h.getActorName();
             } else {
                 actor = "APPLICANT".equals(h.getActorType()) ? "You" : "Garbigo team";
             }
-            list.add(new TimelineEntry(h.getToStatus(), h.getTitle(), h.getNote(), actor, h.getAt()));
+            list.add(new TimelineEntry(h.getToStatus(), h.getEventType() == null ? "STATUS" : h.getEventType(),
+                    h.getTitle(), h.getNote(), h.getItems() == null ? List.of() : h.getItems(), actor, h.getAt()));
         }
         Collections.reverse(list);
         return list;
@@ -139,6 +146,7 @@ public class ApplicationMapper {
     public ApplicationResponse toApplicantResponse(CollectorApplication a) {
         ProgressView progress = ApplicationReadiness.evaluate(a);
         ApplicationStatus s = a.getStatus();
+        ReapplyPolicy.Decision reapply = reapplyPolicy.evaluate(a, Instant.now());
         return ApplicationResponse.builder()
                 .id(a.getId())
                 .referenceNumber(a.getReferenceNumber())
@@ -147,6 +155,12 @@ public class ApplicationMapper {
                 .canSubmit(s.isEditable() && progress.readyToSubmit())
                 .canWithdraw(!s.isTerminal())
                 .lastNoteFromTeam(a.getLastPublicNote())
+                .corrections(a.getLastCorrections() == null ? List.of() : a.getLastCorrections())
+                .canReapply(reapply.allowed())
+                .reapplyAvailableAt(reapply.availableAt())
+                .reapplyMessage(reapply.message())
+                .attemptNumber(a.getAttemptNumber())
+                .previousReferenceNumber(a.getPreviousReferenceNumber())
                 .nextSteps(nextSteps(a, progress))
                 .progress(progress)
                 .applicantName(a.getApplicantName())
@@ -183,9 +197,17 @@ public class ApplicationMapper {
             case ACCEPTED -> List.of(
                     "Your account is now a collector account.",
                     "Open the app to start receiving collection requests.");
-            case REJECTED -> List.of(
-                    "Read the note from our team to see what to fix.",
-                    "Start a new application when you are ready.");
+            case REJECTED -> {
+                ReapplyPolicy.Decision decision = reapplyPolicy.evaluate(a, Instant.now());
+                List<String> steps = new ArrayList<>();
+                steps.add("Read the note and the list of corrections from our team.");
+                if (decision.allowed()) {
+                    steps.add("Fix each point, then start a new application. We copy your details and verified documents for you.");
+                } else if (decision.message() != null) {
+                    steps.add(decision.message());
+                }
+                yield steps;
+            }
             case WITHDRAWN -> List.of("Start a new application whenever you are ready.");
         };
     }
@@ -244,6 +266,11 @@ public class ApplicationMapper {
                 .canPromote(actorIsAdmin && a.getStatus() == ApplicationStatus.VERIFIED)
                 .assignedToId(a.getAssignedToId())
                 .assignedToName(a.getAssignedToName())
+                .corrections(a.getLastCorrections() == null ? List.of() : a.getLastCorrections())
+                .reapplyAllowed(a.getReapplyAllowed())
+                .reapplyAvailableAt(a.getReapplyAvailableAt())
+                .attemptNumber(a.getAttemptNumber())
+                .previousReferenceNumber(a.getPreviousReferenceNumber())
                 .timeline(timeline(a, true))
                 .internalNotes(notes)
                 .submissionCount(a.getSubmissionCount())

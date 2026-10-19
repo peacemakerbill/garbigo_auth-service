@@ -497,7 +497,7 @@ Configuration is loaded from `.env` at startup (via `spring.config.import`), fal
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Facebook Login |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `INTERNAL_API_KEY` | Shared secret other microservices send in the `X-Internal-Api-Key` header |
-| `STORAGE_ROOT` | Folder where collector application documents are saved. Default `/home/graham218/MyProjects/file-storage/Garbigo-Auth/` |
+| `STORAGE_ROOT` | Folder where collector application documents are saved. Required, no default |
 | `STORAGE_APPLICATIONS_FOLDER`, `STORAGE_RESTRICT_PERMISSIONS` | Optional. Sub folder for applications, and owner-only permissions on new files |
 | `COLLECTOR_APPLICATION_MAX_FILE_MB` | Optional. Upload limit per document, default 5 |
 | `COLLECTOR_APPLICATION_REVIEW_DAYS` | Optional. The "we usually reply within N working days" text, default 3 |
@@ -785,7 +785,7 @@ Files can be PDF, JPG, or PNG, up to 5 MB. The service checks the real file cont
 
 ### File Storage Setup
 
-Documents are saved as files in a private folder on the machine that runs the service, one sub folder per applicant. The default is `/home/graham218/MyProjects/file-storage/Garbigo-Auth/`. To use another disk or a mounted Synology or NAS share, set it in `.env` and restart:
+Documents are saved as files in a private folder on the machine that runs the service, one sub folder per applicant. Set the folder in `.env` and restart. It can be a normal server folder or a mounted Synology or NAS share. There is no default; without it, uploads are unavailable:
 
 ```properties
 STORAGE_ROOT=/mnt/synology/garbigo-auth/

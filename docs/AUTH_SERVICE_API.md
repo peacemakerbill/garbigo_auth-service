@@ -692,6 +692,7 @@ Base path: `/collector-applications`. Need `Authorization: Bearer <token>`. Used
 | DELETE | `/collector-applications/me/documents/{documentId}` | Remove a document |
 | GET | `/collector-applications/me/documents/{documentId}/file` | Download the applicant's own file |
 | POST | `/collector-applications/me/submit` | Submit or resubmit |
+| POST | `/collector-applications/me/reapply` | Start a new application after a rejection or withdrawal. Copies details and verified documents |
 | POST | `/collector-applications/me/withdraw` | Withdraw. Optional body `{ "reason": "..." }` |
 
 ### Workflow
@@ -700,6 +701,7 @@ Normal path: `DRAFT`, then `SUBMITTED`, then `PROCESSING`, then `VERIFIED`, then
 
 - Staff can move an application to `MORE_INFO_NEEDED` (the applicant fixes it and resubmits, which returns it to `SUBMITTED`) or to `REJECTED`
 - The applicant can withdraw from any open state, which gives `WITHDRAWN`
+- After `REJECTED` (unless staff marked it final) or `WITHDRAWN` the applicant can apply again with `POST /collector-applications/me/reapply`. Rejections carry a `corrections` list that is emailed and shown on the application. Every step is recorded in the application `timeline`. See `COLLECTOR_APPLICATIONS.md`.
 
 Statuses: `DRAFT`, `SUBMITTED`, `PROCESSING`, `MORE_INFO_NEEDED`, `VERIFIED`, `ACCEPTED`, `REJECTED`, `WITHDRAWN`. `ACCEPTED` is set only by the promote action. The applicant can edit only in `DRAFT` and `MORE_INFO_NEEDED`. One open application per person.
 

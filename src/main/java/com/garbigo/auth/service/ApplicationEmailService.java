@@ -34,6 +34,9 @@ public class ApplicationEmailService {
     @Value("${collector-application.page-path:/collector/application}")
     private String pagePath;
 
+    @Value("${collector-application.staff-page-path:/admin/collector-applications}")
+    private String staffPagePath;
+
     @Value("${collector-application.review-days:3}")
     private int reviewDays;
 
@@ -103,15 +106,30 @@ public class ApplicationEmailService {
                 ctaLabel = "Go to Garbigo";
             }
             case REJECTED -> {
-                subject = "An update on your collector application";
+                boolean canReapply = !Boolean.FALSE.equals(app.getReapplyAllowed());
+                Instant availableAt = app.getReapplyAvailableAt();
+                boolean waiting = canReapply && availableAt != null && availableAt.isAfter(Instant.now());
+                subject = "Your collector application was not approved: what to correct";
                 heading = "We could not approve your application";
-                intro = "Thank you for the time you put into applying. After reviewing your application, we are not able to approve it at this time.";
                 noteTitle = "Reason";
-                steps = List.of(
-                        "Read the reason above carefully.",
-                        "Fix the issue, for example by getting a missing certificate.",
-                        "Start a new application when you are ready. We will be glad to look at it again.");
-                ctaLabel = "View my application";
+                if (canReapply) {
+                    intro = "Thank you for the time you put into applying. We are not able to approve this application, "
+                            + "but you are welcome to apply again. Below is exactly what to correct so your next application can succeed.";
+                    steps = List.of(
+                            "Read the reason and the list of corrections.",
+                            "Fix each point. For documents, get a clear and valid copy.",
+                            waiting
+                                    ? "You can apply again from " + STAMP.format(availableAt)
+                                    + ". We will copy your details and verified documents for you."
+                                    : "Apply again from the app. We copy your details and verified documents, so you only fix what is listed.");
+                    ctaLabel = waiting ? "View my application" : "Apply again";
+                } else {
+                    intro = "Thank you for the time you put into applying. After reviewing your application, we are not able to approve it, and this decision is final.";
+                    steps = List.of(
+                            "Read the reason above.",
+                            "If you think this is a mistake, reply to this email and quote your reference number.");
+                    ctaLabel = "View my application";
+                }
             }
             case WITHDRAWN -> {
                 subject = "Your collector application was withdrawn";
@@ -131,7 +149,8 @@ public class ApplicationEmailService {
         ctx.setVariable("note", teamNote);
         ctx.setVariable("noteTitle", noteTitle);
         ctx.setVariable("items", attentionItems);
-        ctx.setVariable("itemsTitle", "Documents to replace");
+        ctx.setVariable("itemsTitle", status == ApplicationStatus.REJECTED ? "What to correct"
+                : status == ApplicationStatus.MORE_INFO_NEEDED ? "What to fix" : "Documents to replace");
         ctx.setVariable("statusLabel", status.label());
         send(app.getApplicantEmail(), subject, ctx);
     }
@@ -151,6 +170,49 @@ public class ApplicationEmailService {
         ctx.setVariable("itemsTitle", "Document to replace");
         ctx.setVariable("statusLabel", app.getStatus().label());
         send(app.getApplicantEmail(), "A document on your collector application needs replacing", ctx);
+    }
+
+    public void sendReapplicationStarted(CollectorApplication app, String previousReference,
+                                         List<String> corrections, int carriedDocuments) {
+        Look look = lookFor(ApplicationStatus.DRAFT);
+        String intro = "You started a new collector application based on " + previousReference
+                + ". We copied your details" + (carriedDocuments > 0
+                ? " and " + carriedDocuments + " verified document" + (carriedDocuments == 1 ? "" : "s") : "")
+                + " so you do not start from zero.";
+        Context ctx = baseContext(app, look, "Your new application is ready", intro,
+                List.of(
+                        "Review the details we copied and update anything that has changed.",
+                        "Fix the points listed here and upload any document that is missing.",
+                        "Confirm the declarations and submit your application."),
+                "Continue my application");
+        ctx.setVariable("note", null);
+        ctx.setVariable("noteTitle", null);
+        ctx.setVariable("items", corrections == null || corrections.isEmpty() ? null : corrections);
+        ctx.setVariable("itemsTitle", "Still to correct");
+        ctx.setVariable("statusLabel", ApplicationStatus.DRAFT.label());
+        send(app.getApplicantEmail(), "Your new collector application has started", ctx);
+    }
+
+    public void sendStaffResubmitted(CollectorApplication app, String to, String reviewerFirstName) {
+        Look look = lookFor(ApplicationStatus.SUBMITTED);
+        String applicant = app.getApplicantName() == null ? "An applicant" : app.getApplicantName();
+        Context ctx = baseContext(app, look, "Application resubmitted",
+                applicant + " resubmitted application " + app.getReferenceNumber()
+                        + " after the changes you asked for.",
+                List.of(
+                        "Open the application and check that each correction was made.",
+                        "Verify any document that was replaced.",
+                        "Move the application on when you are done."),
+                "Open the application");
+        ctx.setVariable("name", reviewerFirstName == null || reviewerFirstName.isBlank() ? "there" : reviewerFirstName);
+        ctx.setVariable("email", to);
+        ctx.setVariable("ctaUrl", appUrl + staffPagePath + "/" + app.getId());
+        ctx.setVariable("note", app.getLastPublicNote());
+        ctx.setVariable("noteTitle", "Your earlier request");
+        ctx.setVariable("items", app.getLastCorrections() == null || app.getLastCorrections().isEmpty() ? null : app.getLastCorrections());
+        ctx.setVariable("itemsTitle", "Corrections requested");
+        ctx.setVariable("statusLabel", ApplicationStatus.SUBMITTED.label());
+        send(to, "Application " + app.getReferenceNumber() + " was resubmitted", ctx);
     }
 
     private Context baseContext(CollectorApplication app, Look look, String heading, String intro,

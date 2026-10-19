@@ -114,6 +114,11 @@ public class CollectorApplicationController {
         return ResponseEntity.ok(service.submit());
     }
 
+    @PostMapping("/me/reapply")
+    public ResponseEntity<ApplicationResponse> reapply() {
+        return ResponseEntity.ok(service.reapply());
+    }
+
     @PostMapping("/me/withdraw")
     public ResponseEntity<ApplicationResponse> withdraw(@Valid @RequestBody(required = false) WithdrawRequest request) {
         return ResponseEntity.ok(service.withdraw(request == null ? null : request.reason()));

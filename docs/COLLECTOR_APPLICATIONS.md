@@ -78,8 +78,8 @@ stateDiagram-v2
     MORE_INFO_NEEDED --> WITHDRAWN
     VERIFIED --> WITHDRAWN
     ACCEPTED --> [*]
-    REJECTED --> [*]
-    WITHDRAWN --> [*]
+    REJECTED --> DRAFT: applicant applies again
+    WITHDRAWN --> DRAFT: applicant applies again
 ```
 
 | Status | Label the applicant sees | Meaning | Applicant can edit |
@@ -90,16 +90,61 @@ stateDiagram-v2
 | `MORE_INFO_NEEDED` | More information needed | Applicant must fix something and submit again | Yes |
 | `VERIFIED` | Verified | Details and all required documents are verified. Waiting for the admin to promote | No |
 | `ACCEPTED` | Accepted | Promoted. The account is now a `COLLECTOR` | No |
-| `REJECTED` | Not approved | Closed. The applicant can start a new application | No |
+| `REJECTED` | Not approved | Closed. The applicant gets a list of corrections and can apply again (unless staff marked the decision final) | No |
 | `WITHDRAWN` | Withdrawn | The applicant cancelled. They can start a new application | No |
 
 Rules the service enforces:
 
 - Staff cannot set `ACCEPTED` through the status endpoint. Only `POST /collector-applications/{id}/promote` does that, because it also changes the user's role.
-- `REJECTED` and `MORE_INFO_NEEDED` need a note. The applicant sees it and it goes in the email.
+- `REJECTED` and `MORE_INFO_NEEDED` need a note. The applicant sees it and it goes in the email. A rejection that allows reapplying must also list at least one correction (see "Rejection and applying again").
 - `VERIFIED` is refused until every required document is verified and the applicant's details are complete. The response lists exactly what is still open.
-- A person can have only one open application. After `REJECTED` or `WITHDRAWN` they can start a new one.
+- A person can have only one open application. After `REJECTED` or `WITHDRAWN` they can start a new one, subject to the reapply rules below.
 - An ID number (same ID type and country) cannot be used in two live applications from different accounts.
+
+## Rejection and applying again
+
+When staff reject an application they send:
+
+```json
+{
+    "status": "REJECTED",
+    "note": "We could not verify your vehicle ownership.",
+    "corrections": [
+        "Upload a vehicle logbook that shows your name",
+        "Use a driving licence that is valid for at least 6 months"
+    ],
+    "allowReapply": true
+}
+```
+
+- `note` (required) is the reason. `corrections` is the list of things to fix. Documents already marked rejected are added to the list automatically. If `allowReapply` is true (the default) there must be at least one correction, so the applicant always knows what to change.
+- Set `allowReapply` to `false` for a final decision. The applicant is told it is final and cannot start a new application. They are pointed to support.
+- The applicant gets an email with the reason, a "What to correct" list and an "Apply again" button. The same list is on the application (`corrections`), in the timeline and on the staff view.
+
+Applying again:
+
+- `POST /collector-applications/me/reapply` starts a new draft from the latest `REJECTED` or `WITHDRAWN` application. Saving details with `PUT /collector-applications/me` does the same if no draft exists.
+- The new application has a new reference number, `attemptNumber` goes up by one and `previousReferenceNumber` points to the old one.
+- All details are copied (ID, address, vehicle, availability, payout, references and so on). The three declarations (terms, background check, information is true) are not copied and must be confirmed again.
+- Documents that were verified and have not expired are copied, so the applicant uploads only what is missing or was rejected. Rejected or expired documents are not copied.
+- The note and corrections from the rejection stay visible on the new draft until it is submitted.
+- Settings: `COLLECTOR_APPLICATION_REAPPLY_COOLDOWN_DAYS` (days to wait after a rejection, default 0) and `COLLECTOR_APPLICATION_MAX_ATTEMPTS` (total applications per person, default 0 for no limit). When blocked, the response says why and, for a cooldown, `reapplyAvailableAt` has the date.
+
+## Step by step tracking
+
+Every step is added to the application's timeline, which both the applicant and staff can read. Each entry has a `type`, a `title`, an optional `note`, an `items` list and the time.
+
+| Type | Examples |
+|---|---|
+| `STATUS` | Application submitted, Resubmitted with updates, Review started, More information requested, Details and documents verified, Application not approved, Approved and made a collector, Application withdrawn |
+| `DETAILS` | Details updated (saves within 30 minutes are merged into one entry) |
+| `DOCUMENT` | Document uploaded, replaced or removed, Verified documents carried over |
+| `REVIEW` | Document verified, Document needs replacing (with the reviewer's note) |
+| `ASSIGNMENT` | Assigned to a reviewer |
+| `REAPPLY` | New application started (attempt 2) |
+| `NOTE` | Internal note added. Staff only, never shown to the applicant, and the note text is not in the timeline |
+
+Applicants see staff actions as "Garbigo team". Staff see the names.
 
 ## Who can do what
 
@@ -349,6 +394,18 @@ No body. If anything is missing the message names it:
 { "message": "Almost there. Before you submit: Upload your Passport photo; Confirm that your information is true." }
 ```
 
+### POST /collector-applications/me/reapply
+
+No body. Starts a new application after a `REJECTED` or `WITHDRAWN` one, copies the details and the verified documents, and returns the new application with `attemptNumber`, `previousReferenceNumber` and the earlier `corrections`.
+
+If it is not allowed the message says why:
+
+```json
+{ "message": "You can apply again in 5 days. Use the time to fix the points listed in our note." }
+```
+
+`GET /collector-applications/me` tells the app what to show: `canApply`, `message`, `reapplyAvailableAt` and `attempts`. The application itself carries `corrections`, `canReapply`, `reapplyAvailableAt`, `reapplyMessage` and the `timeline`.
+
 ## Staff endpoints
 
 Roles `ADMIN`, `OPERATIONS`, `FINANCE` and `SUPPORT`. Promote is `ADMIN` only.
@@ -499,7 +556,7 @@ Adds the staff-only view on top of the applicant fields:
 }
 ```
 
-`note` is shown to the applicant and emailed. `internalNote` is optional and staff-only. `MORE_INFO_NEEDED` and `REJECTED` require a `note`. When moving to `MORE_INFO_NEEDED`, any rejected documents are listed in the email automatically. The response is the full staff view.
+`note` is shown to the applicant and emailed. `internalNote` is optional and staff-only. `MORE_INFO_NEEDED` and `REJECTED` require a `note`. Both also take an optional `corrections` list (up to 10 short items). Rejected documents are added to the list automatically, and the list is shown in the email, on the application and in the timeline. For `REJECTED`, `allowReapply` (default true) decides whether the applicant may apply again; when true at least one correction is required. The response is the full staff view.
 
 ### PATCH /collector-applications/{id}/documents/{documentId}/review
 
@@ -560,18 +617,20 @@ Create these collection variables: `base_url` (for example `http://localhost:808
 
 The applicant is emailed when:
 
-| Event | Subject |
-|---|---|
-| They submit or resubmit | We received your collector application |
-| A reviewer starts (claim, or first document review) | Your collector application is being reviewed |
-| Status becomes `MORE_INFO_NEEDED` | Action needed on your collector application |
-| A document is rejected while the application is `MORE_INFO_NEEDED` | A document on your collector application needs replacing |
-| Status becomes `VERIFIED` | Your collector application is verified |
-| They are promoted | Welcome aboard, you are now a Garbigo collector |
-| Status becomes `REJECTED` | An update on your collector application |
-| They withdraw | Your collector application was withdrawn |
+| Event | Sent to | Subject |
+|---|---|---|
+| They submit or resubmit | Applicant | We received your collector application |
+| A resubmission after a request for changes | The assigned reviewer | Application GCA-... was resubmitted |
+| A reviewer starts (claim, or first document review) | Applicant | Your collector application is being reviewed |
+| Status becomes `MORE_INFO_NEEDED` | Applicant | Action needed on your collector application (with a "What to fix" list) |
+| A document is rejected while the application is `MORE_INFO_NEEDED` | Applicant | A document on your collector application needs replacing |
+| Status becomes `VERIFIED` | Applicant | Your collector application is verified |
+| They are promoted | Applicant | Welcome aboard, you are now a Garbigo collector |
+| Status becomes `REJECTED` | Applicant | Your collector application was not approved: what to correct (reason, corrections and an "Apply again" button, or a final decision notice) |
+| They start a new application | Applicant | Your new collector application has started |
+| They withdraw | Applicant | Your collector application was withdrawn |
 
-Emails use the template `application-update.html`. Each one shows the reference number, current status, the team's note, a short "What happens next" list, and a button back to the application. Emails are sent in the background, so a mail problem never blocks or rolls back a review.
+Emails use the template `emails/application-update.html`. Each one shows the reference number, current status, the team's note, a short "What happens next" list, and a button back to the application. Emails are sent in the background, so a mail problem never blocks or rolls back a review.
 
 Document rejections that happen before the application is moved to `MORE_INFO_NEEDED` are not emailed one by one. They are listed together in the `MORE_INFO_NEEDED` email, so the applicant gets one clear message instead of several.
 
@@ -579,13 +638,15 @@ Document rejections that happen before the application is moved to `MORE_INFO_NE
 
 Documents are written to a folder on the machine that runs the service. This can be a normal server disk, a folder mounted from a Synology or other NAS, or any path the service user can write to.
 
-Default location (change it with `STORAGE_ROOT`):
+There is no default location. You must set `STORAGE_ROOT` in `.env`, for example:
 
 ```
-/home/graham218/MyProjects/file-storage/Garbigo-Auth/
+STORAGE_ROOT=/home/graham218/MyProjects/file-storage/Garbigo-Auth/
 ```
 
-Inside it the service creates:
+If `STORAGE_ROOT` is empty, the service still starts and everything else works, but uploads and document views return the friendly "document storage" message and the log says `STORAGE_ROOT is not set`.
+
+Inside the folder the service creates:
 
 ```
 collector-applications/
@@ -598,7 +659,7 @@ Setup:
 
 1. Create the folder, or let the service create it on start, and make sure the user that runs the service owns it and can read and write there.
 2. For a Synology or other NAS, mount the share on the server first (NFS or SMB) and point `STORAGE_ROOT` at the mount, for example `/mnt/synology/garbigo-auth/`. The share must stay mounted whenever the service runs, otherwise uploads fail with the "document storage" message.
-3. Set `STORAGE_ROOT` in `.env` if you use another path, then restart the service. The log shows `STORAGE: documents are stored in ...` on start, or an error if the folder cannot be used.
+3. Set `STORAGE_ROOT` in `.env`, then restart the service. The log shows `STORAGE: documents are stored in ...` on start, or an error if the folder cannot be used.
 
 Keep in mind:
 
@@ -612,25 +673,31 @@ Keep in mind:
 
 ## Configuration
 
-Add to `.env` (all optional, the defaults are shown):
+Add to `.env` (`STORAGE_ROOT` is required, the rest are optional and the defaults are shown):
 
 ```properties
-STORAGE_ROOT=/home/graham218/MyProjects/file-storage/Garbigo-Auth/
+STORAGE_ROOT=/path/to/your/storage/folder/
 STORAGE_APPLICATIONS_FOLDER=collector-applications
 STORAGE_RESTRICT_PERMISSIONS=true
 COLLECTOR_APPLICATION_MAX_FILE_MB=5
 COLLECTOR_APPLICATION_REVIEW_DAYS=3
 COLLECTOR_APPLICATION_PAGE_PATH=/collector/application
+COLLECTOR_APPLICATION_STAFF_PAGE_PATH=/admin/collector-applications
+COLLECTOR_APPLICATION_REAPPLY_COOLDOWN_DAYS=0
+COLLECTOR_APPLICATION_MAX_ATTEMPTS=0
 ```
 
 | Variable | Purpose |
 |---|---|
-| `STORAGE_ROOT` | Folder where documents are saved. Created if missing |
+| `STORAGE_ROOT` | Required, no default. Folder where documents are saved. Created if missing |
 | `STORAGE_APPLICATIONS_FOLDER` | Sub folder of the root that holds one folder per application |
 | `STORAGE_RESTRICT_PERMISSIONS` | Owner-only permissions on new folders and files |
 | `COLLECTOR_APPLICATION_MAX_FILE_MB` | Per-file upload limit. Keep it at or below the `spring.servlet.multipart` limit (10 MB) |
 | `COLLECTOR_APPLICATION_REVIEW_DAYS` | The "we usually reply within N working days" text in emails and next steps |
 | `COLLECTOR_APPLICATION_PAGE_PATH` | Front-end route the email button opens, added to `APP_URL` |
+| `COLLECTOR_APPLICATION_STAFF_PAGE_PATH` | Front-end route staff open from the resubmission email. The application id is added at the end |
+| `COLLECTOR_APPLICATION_REAPPLY_COOLDOWN_DAYS` | Days a rejected applicant waits before applying again. 0 means no wait |
+| `COLLECTOR_APPLICATION_MAX_ATTEMPTS` | Most applications one person may make in total. 0 means no limit |
 
 The Google Drive libraries are no longer needed. The email template is `src/main/resources/templates/emails/application-update.html`.
 

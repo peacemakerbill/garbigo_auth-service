@@ -149,8 +149,10 @@ public final class ApplicationDtos {
 
     public record TimelineEntry(
             ApplicationStatus status,
+            String type,
             String title,
             String note,
+            List<String> items,
             String actorName,
             Instant at) {
     }
@@ -174,6 +176,12 @@ public final class ApplicationDtos {
             boolean canSubmit,
             boolean canWithdraw,
             String lastNoteFromTeam,
+            List<String> corrections,
+            boolean canReapply,
+            Instant reapplyAvailableAt,
+            String reapplyMessage,
+            int attemptNumber,
+            String previousReferenceNumber,
             List<String> nextSteps,
             ProgressView progress,
             String applicantName,
@@ -192,6 +200,8 @@ public final class ApplicationDtos {
             boolean hasApplication,
             boolean canApply,
             String message,
+            Instant reapplyAvailableAt,
+            int attempts,
             ApplicationResponse application,
             List<RequirementView> checklist) {
     }
@@ -200,6 +210,7 @@ public final class ApplicationDtos {
             String id,
             String referenceNumber,
             StatusInfo status,
+            int attemptNumber,
             Instant submittedAt,
             Instant createdAt) {
     }
@@ -257,6 +268,11 @@ public final class ApplicationDtos {
             boolean canPromote,
             String assignedToId,
             String assignedToName,
+            List<String> corrections,
+            Boolean reapplyAllowed,
+            Instant reapplyAvailableAt,
+            int attemptNumber,
+            String previousReferenceNumber,
             List<TimelineEntry> timeline,
             List<InternalNoteView> internalNotes,
             int submissionCount,
@@ -272,7 +288,10 @@ public final class ApplicationDtos {
     public record StatusUpdateRequest(
             @NotNull(message = "Please choose the new status.") ApplicationStatus status,
             @Size(max = 1000, message = "Please keep the note under 1000 characters.") String note,
-            @Size(max = 1000, message = "Please keep the internal note under 1000 characters.") String internalNote) {
+            @Size(max = 1000, message = "Please keep the internal note under 1000 characters.") String internalNote,
+            @Size(max = 10, message = "Please list at most 10 corrections.")
+            List<@Size(max = 200, message = "Please keep each correction under 200 characters.") String> corrections,
+            Boolean allowReapply) {
     }
 
     public record DocumentReviewRequest(

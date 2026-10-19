@@ -29,11 +29,10 @@ public class DiskStorageService {
     private final String applicationsFolder;
     private final boolean restrictPermissions;
 
-    public DiskStorageService(@Value("${app.storage.root:/home/graham218/MyProjects/file-storage/Garbigo-Auth/}") String rootPath,
+    public DiskStorageService(@Value("${app.storage.root:}") String rootPath,
                               @Value("${app.storage.applications-folder:collector-applications}") String applicationsFolder,
                               @Value("${app.storage.restrict-permissions:true}") boolean restrictPermissions) {
-        this.root = Paths.get(rootPath == null || rootPath.isBlank() ? "file-storage" : rootPath.trim())
-                .toAbsolutePath().normalize();
+        this.root = rootPath == null || rootPath.isBlank() ? null : Paths.get(rootPath.trim()).toAbsolutePath().normalize();
         this.applicationsFolder = applicationsFolder == null || applicationsFolder.isBlank()
                 ? "collector-applications" : applicationsFolder.trim();
         this.restrictPermissions = restrictPermissions;
@@ -41,6 +40,11 @@ public class DiskStorageService {
 
     @jakarta.annotation.PostConstruct
     void prepare() {
+        if (root == null) {
+            log.error("STORAGE: STORAGE_ROOT is not set, so document uploads are unavailable. "
+                    + "Set it in .env to the folder where documents should be saved.");
+            return;
+        }
         try {
             createDirectories(root);
             if (!Files.isWritable(root)) {
@@ -54,6 +58,10 @@ public class DiskStorageService {
         }
     }
 
+    public boolean isConfigured() {
+        return root != null;
+    }
+
     public Path rootDirectory() {
         return root;
     }
@@ -63,6 +71,7 @@ public class DiskStorageService {
     }
 
     public StoredFile upload(String folder, String storedName, byte[] data) {
+        requireConfigured();
         String relative = folder + "/" + requireSafeSegment(storedName);
         Path target = resolve(relative);
         Path temp = null;
@@ -92,6 +101,7 @@ public class DiskStorageService {
     }
 
     public byte[] download(String relativePath) {
+        requireConfigured();
         if (relativePath == null || relativePath.isBlank()) {
             throw new CustomException("This file could not be found. It may have been removed from storage.");
         }
@@ -107,7 +117,7 @@ public class DiskStorageService {
     }
 
     public void deleteQuietly(String relativePath) {
-        if (relativePath == null || relativePath.isBlank()) {
+        if (root == null || relativePath == null || relativePath.isBlank()) {
             return;
         }
         try {
@@ -132,6 +142,13 @@ public class DiskStorageService {
             throw new CustomException("This file could not be found. It may have been removed from storage.");
         }
         return resolved;
+    }
+
+    private void requireConfigured() {
+        if (root == null) {
+            log.error("STORAGE: STORAGE_ROOT is not set. Set it in .env to enable document uploads.");
+            throw unavailable();
+        }
     }
 
     private static String requireSafeSegment(String name) {
