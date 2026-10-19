@@ -7,4 +7,8 @@ import java.util.Optional;
 
 public interface TokenRepository extends MongoRepository<Token, String> {
     Optional<Token> findByToken(String token);
+
+    void deleteByUserIdAndType(String userId, String type);
+
+    Optional<Token> findFirstByUserIdAndTypeOrderByCreatedAtDesc(String userId, String type);
 }

@@ -11,8 +11,10 @@ import java.util.Optional;
 public interface UserRepository extends MongoRepository<User, String> {
     
     Optional<User> findByEmail(String email);
+    List<User> findAllByEmailIgnoreCase(String email);
     Optional<User> findByPhoneNumber(String phoneNumber);
     List<User> findByDisplayUsername(String displayUsername);
+    List<User> findByRole(Role role);
     
     long countByRole(Role role);
 

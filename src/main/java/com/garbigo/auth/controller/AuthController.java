@@ -1,10 +1,12 @@
 package com.garbigo.auth.controller;
 
 import com.garbigo.auth.dto.*;
-import com.garbigo.auth.security.TokenBlacklistService;
+import com.garbigo.auth.security.ClientContext;
+import com.garbigo.auth.security.ClientContextFactory;
 import com.garbigo.auth.service.AuthService;
 import com.garbigo.auth.service.SocialAuthService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,15 +15,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class AuthController {
 
+    private static final String RESET_MESSAGE =
+            "If an account exists for that email, we have sent a password reset link to it.";
+    private static final String RESEND_MESSAGE =
+            "If that email belongs to an account that still needs verifying, we have sent a new link to it.";
+
     private final AuthService authService;
     private final SocialAuthService socialAuthService;
-    private final TokenBlacklistService tokenBlacklistService;
+    private final ClientContextFactory contexts;
 
     public AuthController(AuthService authService, SocialAuthService socialAuthService,
-                           TokenBlacklistService tokenBlacklistService) {
+                          ClientContextFactory contexts) {
         this.authService = authService;
         this.socialAuthService = socialAuthService;
-        this.tokenBlacklistService = tokenBlacklistService;
+        this.contexts = contexts;
     }
 
     @PostMapping("/signup")
@@ -30,16 +37,15 @@ public class AuthController {
     }
 
     @PostMapping("/signin")
-    public ResponseEntity<AuthResponse> signin(@Valid @RequestBody AuthRequest request) {
-        return ResponseEntity.ok(authService.signin(request));
+    public ResponseEntity<AuthResponse> signin(@Valid @RequestBody AuthRequest request,
+                                               HttpServletRequest http, HttpServletResponse response) {
+        ClientContext ctx = contexts.from(http);
+        return respond(authService.signin(request, ctx), response);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<MessageResponse> logout(HttpServletRequest request) {
-        String token = extractBearerToken(request);
-        if (token != null) {
-            tokenBlacklistService.revoke(token);
-        }
+        authService.logout(extractBearerToken(request));
         return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
     }
 
@@ -53,20 +59,19 @@ public class AuthController {
 
     @GetMapping("/verify")
     public ResponseEntity<MessageResponse> verify(@RequestParam String token) {
-        authService.verifyAccount(token);
-        return ResponseEntity.ok(new MessageResponse("Account verified successfully"));
+        return ResponseEntity.ok(new MessageResponse(authService.verifyAccount(token)));
     }
 
     @PostMapping("/resend-verification")
     public ResponseEntity<MessageResponse> resendVerification(@Valid @RequestBody PasswordResetRequest request) {
         authService.resendVerificationEmail(request.getEmail());
-        return ResponseEntity.ok(new MessageResponse("Verification email resent successfully"));
+        return ResponseEntity.ok(new MessageResponse(RESEND_MESSAGE));
     }
 
     @PostMapping("/reset-password/request")
     public ResponseEntity<MessageResponse> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
         authService.requestPasswordReset(request.getEmail());
-        return ResponseEntity.ok(new MessageResponse("Password reset link sent to email"));
+        return ResponseEntity.ok(new MessageResponse(RESET_MESSAGE));
     }
 
     @PostMapping("/reset-password/confirm")
@@ -83,17 +88,25 @@ public class AuthController {
     }
 
     @PostMapping("/social/google")
-    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody SocialLoginRequest request) {
-        return ResponseEntity.ok(socialAuthService.googleLogin(request));
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody SocialLoginRequest request,
+                                                    HttpServletRequest http, HttpServletResponse response) {
+        return respond(socialAuthService.googleLogin(request, contexts.from(http)), response);
     }
 
     @PostMapping("/social/facebook")
-    public ResponseEntity<AuthResponse> facebookLogin(@Valid @RequestBody SocialLoginRequest request) {
-        return ResponseEntity.ok(socialAuthService.facebookLogin(request));
+    public ResponseEntity<AuthResponse> facebookLogin(@Valid @RequestBody SocialLoginRequest request,
+                                                      HttpServletRequest http, HttpServletResponse response) {
+        return respond(socialAuthService.facebookLogin(request, contexts.from(http)), response);
     }
 
     @PostMapping("/social/github")
-    public ResponseEntity<AuthResponse> githubLogin(@Valid @RequestBody SocialLoginRequest request) {
-        return ResponseEntity.ok(socialAuthService.githubLogin(request));
+    public ResponseEntity<AuthResponse> githubLogin(@Valid @RequestBody SocialLoginRequest request,
+                                                    HttpServletRequest http, HttpServletResponse response) {
+        return respond(socialAuthService.githubLogin(request, contexts.from(http)), response);
+    }
+
+    private ResponseEntity<AuthResponse> respond(SignInResult result, HttpServletResponse response) {
+        contexts.attachDeviceToken(response, result.newDeviceToken());
+        return ResponseEntity.ok(result.auth());
     }
 }

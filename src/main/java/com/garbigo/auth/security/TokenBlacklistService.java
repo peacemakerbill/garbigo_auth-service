@@ -24,8 +24,15 @@ public class TokenBlacklistService {
         if (jti == null) {
             return;
         }
+        revokeJti(jti, jwtUtil.extractExpiration(token));
+    }
 
-        Duration remaining = Duration.between(Instant.now(), jwtUtil.extractExpiration(token));
+    public void revokeJti(String jti, Instant expiresAt) {
+        if (jti == null || expiresAt == null) {
+            return;
+        }
+
+        Duration remaining = Duration.between(Instant.now(), expiresAt);
         if (remaining.isNegative() || remaining.isZero()) {
             return;
         }

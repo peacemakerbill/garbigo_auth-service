@@ -40,6 +40,10 @@ public class JwtUtil {
         return extractClaim(token, claims -> claims.getExpiration().toInstant());
     }
 
+    public Instant extractIssuedAt(String token) {
+        return extractClaim(token, claims -> claims.getIssuedAt() == null ? null : claims.getIssuedAt().toInstant());
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -58,14 +62,15 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public record GeneratedToken(String token, Instant expiresAt) {}
+    public record GeneratedToken(String token, Instant expiresAt, String jti, Instant issuedAt) {}
 
     public GeneratedToken generateToken(User user) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(expiration);
+        String jti = UUID.randomUUID().toString();
 
         String token = Jwts.builder()
-                .id(UUID.randomUUID().toString())
+                .id(jti)
                 .subject(user.getUsername())
                 .claim("userId", user.getId())
                 .issuedAt(Date.from(now))
@@ -73,7 +78,7 @@ public class JwtUtil {
                 .signWith(getSignInKey())
                 .compact();
 
-        return new GeneratedToken(token, expiresAt);
+        return new GeneratedToken(token, expiresAt, jti, now);
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {

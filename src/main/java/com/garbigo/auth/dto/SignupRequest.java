@@ -1,8 +1,8 @@
 package com.garbigo.auth.dto;
 
-import com.garbigo.auth.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
@@ -25,7 +25,6 @@ public class SignupRequest {
     private String homeAddress;
 
     @NotBlank(message = "Password is required")
+    @Size(max = 128, message = "Password must be 128 characters or fewer")
     private String password;
-
-    private Role role;
 }

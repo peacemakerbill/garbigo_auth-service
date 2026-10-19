@@ -1,16 +1,18 @@
 package com.garbigo.auth.service;
 
-import com.garbigo.auth.dto.AuthResponse;
+import com.garbigo.auth.dto.SignInResult;
+import com.garbigo.auth.enums.SignInMethod;
+import com.garbigo.auth.model.User;
+import com.garbigo.auth.security.ClientContext;
+import com.garbigo.auth.util.EmailAddresses;
 import com.garbigo.auth.dto.SocialLoginRequest;
 import com.garbigo.auth.exception.CustomException;
-import com.garbigo.auth.enums.Role;
-import com.garbigo.auth.model.User;
-import com.garbigo.auth.repository.UserRepository;
-import com.garbigo.auth.security.JwtUtil;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -34,9 +36,10 @@ public class SocialAuthService {
     private static final ParameterizedTypeReference<List<Map<String, Object>>> JSON_ARRAY =
             new ParameterizedTypeReference<>() {};
 
-    private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
-    private final UsernameGenerator usernameGenerator;
+    private static final Logger log = LoggerFactory.getLogger(SocialAuthService.class);
+
+    private final SocialAccountLinker linker;
+    private final AuthService authService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${google.client-id}")
@@ -54,13 +57,12 @@ public class SocialAuthService {
     @Value("${github.client-secret}")
     private String githubClientSecret;
 
-    public SocialAuthService(UserRepository userRepository, JwtUtil jwtUtil, UsernameGenerator usernameGenerator) {
-        this.userRepository = userRepository;
-        this.jwtUtil = jwtUtil;
-        this.usernameGenerator = usernameGenerator;
+    public SocialAuthService(SocialAccountLinker linker, AuthService authService) {
+        this.linker = linker;
+        this.authService = authService;
     }
 
-    public AuthResponse googleLogin(SocialLoginRequest request) {
+    public SignInResult googleLogin(SocialLoginRequest request, ClientContext ctx) {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(), new GsonFactory())
@@ -69,30 +71,31 @@ public class SocialAuthService {
 
             GoogleIdToken idToken = verifier.verify(request.getToken());
             if (idToken == null) {
-                System.err.println("GOOGLE LOGIN: ID token failed verification (bad signature, expired, "
-                        + "wrong token type, or audience does not match GOOGLE_CLIENT_ID)");
+                log.warn("Google sign-in: the ID token failed verification (bad signature, expired, wrong token "
+                        + "type, or the audience does not match GOOGLE_CLIENT_ID)");
                 throw new CustomException("We couldn't verify your Google account. Please try signing in again.");
             }
 
             GoogleIdToken.Payload payload = idToken.getPayload();
-            String email = payload.getEmail();
+            String email = EmailAddresses.normalize(payload.getEmail());
+            if (email == null) {
+                throw new CustomException("Your Google account didn't share an email address. "
+                        + "Please sign up with email instead.");
+            }
             String name = (String) payload.get("name");
+            boolean confirmed = Boolean.TRUE.equals(payload.getEmailVerified());
 
-            User user = findOrCreateSocialUser(email, name != null ? name : "Google User", null);
-            user.setVerified(true);
-            userRepository.save(user);
-
-            return buildAuthResponse(user);
+            return complete(new SocialAccountLinker.Identity(email, name != null ? name : "Google User", null,
+                    confirmed, SignInMethod.GOOGLE), ctx);
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
-            System.err.println("GOOGLE LOGIN ERROR: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Google sign-in failed", e);
             throw new CustomException("We couldn't sign you in with Google. Please try again.");
         }
     }
 
-    public AuthResponse facebookLogin(SocialLoginRequest request) {
+    public SignInResult facebookLogin(SocialLoginRequest request, ClientContext ctx) {
         try {
             String appAccessToken = facebookAppId + "|" + facebookAppSecret;
             String debugUrl = "https://graph.facebook.com/debug_token?input_token="
@@ -104,12 +107,12 @@ public class SocialAuthService {
             @SuppressWarnings("unchecked")
             Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
 
-            if (data == null || !(Boolean) data.get("is_valid")) {
+            if (data == null || !Boolean.TRUE.equals(data.get("is_valid"))) {
                 throw new CustomException("We couldn't verify your Facebook account. Please try signing in again.");
             }
 
             if (!facebookAppId.trim().equals(String.valueOf(data.get("app_id")))) {
-                System.err.println("FACEBOOK LOGIN: token was issued for a different app (app_id mismatch)");
+                log.warn("Facebook sign-in: the token was issued for a different app");
                 throw new CustomException("We couldn't verify your Facebook account. Please try signing in again.");
             }
 
@@ -121,29 +124,25 @@ public class SocialAuthService {
                     restTemplate.exchange(userInfoUrl, HttpMethod.GET, null, JSON_OBJECT);
             Map<String, Object> userInfo = userResponse.getBody();
 
-            String email = (String) userInfo.get("email");
+            String email = EmailAddresses.normalize((String) userInfo.get("email"));
             String name = (String) userInfo.get("name");
 
-            if (email == null || email.isBlank()) {
+            if (email == null) {
                 throw new CustomException("Your Facebook account didn't share an email address. Please add "
                         + "an email to your Facebook account and allow email access, or sign up with email instead.");
             }
 
-            User user = findOrCreateSocialUser(email, name != null ? name : "Facebook User", null);
-            user.setVerified(true);
-            userRepository.save(user);
-
-            return buildAuthResponse(user);
+            return complete(new SocialAccountLinker.Identity(email, name != null ? name : "Facebook User", null,
+                    false, SignInMethod.FACEBOOK), ctx);
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
-            System.err.println("FACEBOOK LOGIN ERROR: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Facebook sign-in failed", e);
             throw new CustomException("We couldn't sign you in with Facebook. Please try again.");
         }
     }
 
-    public AuthResponse githubLogin(SocialLoginRequest request) {
+    public SignInResult githubLogin(SocialLoginRequest request, ClientContext ctx) {
         try {
             String accessToken = exchangeGithubCodeForToken(request.getToken());
 
@@ -162,29 +161,32 @@ public class SocialAuthService {
 
             String name = (String) profile.get("name");
             String login = (String) profile.get("login");
-            String email = (String) profile.get("email");
 
+            String email = fetchPrimaryGithubEmail(profileHeaders);
+            boolean confirmed = email != null;
             if (email == null) {
-                email = fetchPrimaryGithubEmail(profileHeaders);
+                email = (String) profile.get("email");
             }
+            email = EmailAddresses.normalize(email);
 
             if (email == null) {
                 throw new CustomException("Your GitHub account needs a verified email address before you can "
                         + "sign in. Please verify an email on GitHub and try again.");
             }
 
-            User user = findOrCreateSocialUser(email, name != null ? name : login, login);
-            user.setVerified(true);
-            userRepository.save(user);
-
-            return buildAuthResponse(user);
+            return complete(new SocialAccountLinker.Identity(email, name != null ? name : login, login,
+                    confirmed, SignInMethod.GITHUB), ctx);
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
-            System.err.println("GITHUB LOGIN ERROR: " + e.getMessage());
-            e.printStackTrace();
+            log.error("GitHub sign-in failed", e);
             throw new CustomException("We couldn't sign you in with GitHub. Please try again.");
         }
+    }
+
+    private SignInResult complete(SocialAccountLinker.Identity identity, ClientContext ctx) {
+        User user = linker.resolveAndPromote(identity);
+        return authService.finishSignIn(user, identity.provider(), ctx);
     }
 
     private String exchangeGithubCodeForToken(String code) {
@@ -206,7 +208,7 @@ public class SocialAuthService {
         String accessToken = tokenBody != null ? (String) tokenBody.get("access_token") : null;
 
         if (accessToken == null) {
-            System.err.println("GITHUB LOGIN: code exchange failed: " + tokenBody);
+            log.warn("GitHub sign-in: the code exchange did not return an access token");
             throw new CustomException("We couldn't sign you in with GitHub. Please try again.");
         }
 
@@ -214,47 +216,24 @@ public class SocialAuthService {
     }
 
     private String fetchPrimaryGithubEmail(HttpHeaders headers) {
-        ResponseEntity<List<Map<String, Object>>> emailsResponse = restTemplate.exchange(
-                "https://api.github.com/user/emails", HttpMethod.GET,
-                new HttpEntity<>(headers), JSON_ARRAY);
+        try {
+            ResponseEntity<List<Map<String, Object>>> emailsResponse = restTemplate.exchange(
+                    "https://api.github.com/user/emails", HttpMethod.GET,
+                    new HttpEntity<>(headers), JSON_ARRAY);
 
-        List<Map<String, Object>> emails = emailsResponse.getBody();
-        if (emails == null) {
-            return null;
-        }
-
-        return emails.stream()
-                .filter(e -> Boolean.TRUE.equals(e.get("primary")) && Boolean.TRUE.equals(e.get("verified")))
-                .map(e -> (String) e.get("email"))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private User findOrCreateSocialUser(String email, String name, String preferredUsername) {
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            User newUser = new User();
-            newUser.setEmail(email);
-
-            String[] nameParts = name.split(" ");
-            newUser.setFirstName(nameParts[0]);
-
-            if (nameParts.length > 1) {
-                newUser.setLastName(nameParts[nameParts.length - 1]);
+            List<Map<String, Object>> emails = emailsResponse.getBody();
+            if (emails == null) {
+                return null;
             }
 
-            newUser.setRole(Role.CLIENT);
-            return newUser;
-        });
-
-        if (user.getDisplayUsername() == null) {
-            user.setDisplayUsername(usernameGenerator.generate(preferredUsername, name, email));
+            return emails.stream()
+                    .filter(e -> Boolean.TRUE.equals(e.get("primary")) && Boolean.TRUE.equals(e.get("verified")))
+                    .map(e -> (String) e.get("email"))
+                    .findFirst()
+                    .orElse(null);
+        } catch (Exception e) {
+            log.debug("Could not read the GitHub email list: {}", e.getClass().getSimpleName());
+            return null;
         }
-
-        return userRepository.save(user);
-    }
-
-    private AuthResponse buildAuthResponse(User user) {
-        JwtUtil.GeneratedToken generated = jwtUtil.generateToken(user);
-        return new AuthResponse(generated.token(), user.getRole().name(), generated.expiresAt());
     }
 }

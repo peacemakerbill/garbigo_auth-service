@@ -74,6 +74,10 @@ public class SecurityConfig {
                     "/auth/social/github"
                 ).permitAll()
 
+                // Account security: owner links from emails work without a sign-in
+                .requestMatchers(HttpMethod.POST, "/security/actions/inspect", "/security/actions/report-unauthorized")
+                    .permitAll()
+
                 // Collectors search (for clients)
                 .requestMatchers(HttpMethod.GET, "/users/collectors", "/users/collectors/**").authenticated()
 
@@ -95,6 +99,17 @@ public class SecurityConfig {
 
                 // Live Location
                 .requestMatchers("/users/live-location/**").authenticated()
+
+                // ====================== COLLECTOR APPLICATIONS ======================
+                .requestMatchers("/collector-applications/options", "/collector-applications/requirements").authenticated()
+                .requestMatchers("/collector-applications/me", "/collector-applications/me/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/collector-applications/*/promote").hasRole("ADMIN")
+                .requestMatchers("/collector-applications", "/collector-applications/**")
+                    .hasAnyRole("ADMIN", "OPERATIONS", "FINANCE", "SUPPORT")
+
+                // ====================== ACCOUNT SECURITY ======================
+                .requestMatchers("/security/admin/**").hasRole("ADMIN")
+                .requestMatchers("/security/**").authenticated()
 
                 // ====================== ADMIN ONLY (MUST BE AFTER USER RULES) ======================
                 .requestMatchers("/users/**").hasRole("ADMIN")

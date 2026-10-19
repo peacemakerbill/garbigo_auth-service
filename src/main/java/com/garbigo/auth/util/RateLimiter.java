@@ -14,21 +14,22 @@ public class RateLimiter {
     private final RMapCache<String, Integer> rateLimitCache;
     private final RateLimitProperties rateLimitProperties;
     private final HttpServletRequest request;
+    private final ClientIpResolver ipResolver;
 
     public RateLimiter(RMapCache<String, Integer> rateLimitCache,
                        RateLimitProperties rateLimitProperties,
-                       HttpServletRequest request) {
+                       HttpServletRequest request, ClientIpResolver ipResolver) {
         this.rateLimitCache = rateLimitCache;
         this.rateLimitProperties = rateLimitProperties;
         this.request = request;
+        this.ipResolver = ipResolver;
     }
 
     public void checkRateLimit() {
         String requestURI = request.getRequestURI();
         
-        // Skip rate limiting for live location endpoints (high frequency)
         if (requestURI.contains("/live-location")) {
-            return;  // Bypass rate limiter
+            return;
         }
 
         String key = getClientIdentifier();
@@ -46,23 +47,7 @@ public class RateLimiter {
     }
 
     private String getClientIdentifier() {
-        // Try to get IP from request headers (for proxy environments)
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        
-        // For multiple IPs (behind proxy), take the first one
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        
+        String ip = ipResolver.resolve(request.getRemoteAddr(), request.getHeader("X-Forwarded-For"));
         return "rate_limit:" + ip + ":" + System.currentTimeMillis() / (rateLimitProperties.windowInSeconds() * 1000);
     }
 }

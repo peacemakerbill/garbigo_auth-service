@@ -55,6 +55,9 @@ public class User implements UserDetails {
     private boolean active = true;
     private boolean archived = false;
 
+    @JsonIgnore
+    private Long tokensValidAfter;
+
     private List<String> followers;
     private List<String> likes;
     private List<String> reviews;

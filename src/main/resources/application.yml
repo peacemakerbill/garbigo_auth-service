@@ -38,6 +38,9 @@ spring:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 5000
+          timeout: 10000
+          writetimeout: 10000
 
   # ====================== MULTIPART CONFIGURATION ======================
   servlet:
@@ -68,6 +71,61 @@ rabbitmq:
 
 app:
   url: ${APP_URL:http://localhost:3000}
+
+  security:
+    initial-admin-emails: ${INITIAL_ADMIN_EMAILS:}
+    auto-admin-emails: ${AUTO_ADMIN_EMAILS:}
+    admin-invitation-resend-days: ${SECURITY_ADMIN_INVITATION_RESEND_DAYS:7}
+    admin-register-path: ${SECURITY_ADMIN_REGISTER_PATH:/register}
+    admin-verification-requires-new-password: ${SECURITY_ADMIN_VERIFICATION_REQUIRES_NEW_PASSWORD:true}
+
+    login-email-notifications: ${SECURITY_LOGIN_EMAIL_NOTIFICATIONS:true}
+    new-device-alerts: ${SECURITY_NEW_DEVICE_ALERTS:true}
+    notify-untrusted-devices: ${SECURITY_NOTIFY_UNTRUSTED_DEVICES:true}
+    suspicious-login-alerts: ${SECURITY_SUSPICIOUS_LOGIN_ALERTS:true}
+    notification-cooldown-minutes: ${SECURITY_NOTIFICATION_COOLDOWN_MINUTES:60}
+    suspicious-alert-cooldown-minutes: ${SECURITY_SUSPICIOUS_ALERT_COOLDOWN_MINUTES:15}
+
+    device-trust-enabled: ${SECURITY_DEVICE_TRUST_ENABLED:true}
+    session-revocation-enabled: ${SECURITY_SESSION_REVOCATION_ENABLED:true}
+    allow-untracked-tokens: ${SECURITY_ALLOW_UNTRACKED_TOKENS:true}
+    report-revokes-all-sessions: ${SECURITY_REPORT_REVOKES_ALL_SESSIONS:true}
+    max-devices-per-user: ${SECURITY_MAX_DEVICES_PER_USER:50}
+    recent-auth-minutes: ${SECURITY_RECENT_AUTH_MINUTES:15}
+    action-token-ttl-minutes: ${SECURITY_ACTION_TOKEN_TTL_MINUTES:1440}
+
+    device-cookie-name: ${SECURITY_DEVICE_COOKIE_NAME:gb_device}
+    device-cookie-secure: ${SECURITY_DEVICE_COOKIE_SECURE:true}
+    device-cookie-same-site: ${SECURITY_DEVICE_COOKIE_SAME_SITE:Lax}
+    device-cookie-days: ${SECURITY_DEVICE_COOKIE_DAYS:180}
+
+    trusted-proxies: ${SECURITY_TRUSTED_PROXIES:}
+
+    ip-geolocation-enabled: ${SECURITY_IP_GEOLOCATION_ENABLED:false}
+    ip-geolocation-url: ${SECURITY_IP_GEOLOCATION_URL:https://ipinfo.io/{ip}/json}
+    ip-geolocation-token: ${SECURITY_IP_GEOLOCATION_TOKEN:}
+    ip-geolocation-timeout-ms: ${SECURITY_IP_GEOLOCATION_TIMEOUT_MS:2000}
+
+    max-failed-logins-per-email-and-ip: ${SECURITY_MAX_FAILED_LOGINS_PER_EMAIL_AND_IP:5}
+    max-failed-logins-per-ip: ${SECURITY_MAX_FAILED_LOGINS_PER_IP:30}
+    max-failed-logins-per-email: ${SECURITY_MAX_FAILED_LOGINS_PER_EMAIL:20}
+    failure-window-minutes: ${SECURITY_FAILURE_WINDOW_MINUTES:15}
+    lockout-minutes: ${SECURITY_LOCKOUT_MINUTES:5}
+    max-lockout-minutes: ${SECURITY_MAX_LOCKOUT_MINUTES:60}
+
+    suspicious-window-minutes: ${SECURITY_SUSPICIOUS_WINDOW_MINUTES:60}
+    suspicious-failed-threshold: ${SECURITY_SUSPICIOUS_FAILED_THRESHOLD:5}
+    suspicious-address-threshold: ${SECURITY_SUSPICIOUS_ADDRESS_THRESHOLD:3}
+    suspicious-frequency-threshold: ${SECURITY_SUSPICIOUS_FREQUENCY_THRESHOLD:10}
+
+    audit-retention-days: ${SECURITY_AUDIT_RETENTION_DAYS:180}
+    retention-interval-minutes: ${SECURITY_RETENTION_INTERVAL_MINUTES:360}
+
+    display-time-zone: ${SECURITY_DISPLAY_TIME_ZONE:UTC}
+    security-review-path: ${SECURITY_REVIEW_PATH:/account/security}
+    report-path: ${SECURITY_REPORT_PATH:/account/security/report}
+
+    hide-account-existence-on-signup: ${SECURITY_HIDE_ACCOUNT_EXISTENCE_ON_SIGNUP:false}
 
 google:
   client-id: ${GOOGLE_CLIENT_ID}

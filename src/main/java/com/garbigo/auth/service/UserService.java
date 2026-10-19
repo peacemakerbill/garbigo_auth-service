@@ -5,10 +5,12 @@ import com.garbigo.auth.dto.InternalUserDto;
 import com.garbigo.auth.dto.ProfileUpdateDto;
 import com.garbigo.auth.dto.ProfileUpdateRequest;
 import com.garbigo.auth.dto.UserDto;
+import com.garbigo.auth.enums.SecurityEventType;
 import com.garbigo.auth.exception.CustomException;
 import com.garbigo.auth.enums.Role;
 import com.garbigo.auth.model.User;
 import com.garbigo.auth.repository.UserRepository;
+import com.garbigo.auth.util.EmailAddresses;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -30,15 +32,19 @@ public class UserService {
     private final ModelMapper modelMapper;
     private final AuthService authService;
     private final MongoTemplate mongoTemplate;
+    private final AdminRoleService adminRoleService;
+    private final SecurityAuditService audit;
 
     public UserService(UserRepository userRepository, Cloudinary cloudinary,
                        PasswordEncoder passwordEncoder, AuthService authService, ModelMapper modelMapper,
-                       MongoTemplate mongoTemplate) {
+                       MongoTemplate mongoTemplate, AdminRoleService adminRoleService, SecurityAuditService audit) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
         this.modelMapper = modelMapper;
         this.mongoTemplate = mongoTemplate;
+        this.adminRoleService = adminRoleService;
+        this.audit = audit;
     }
 
     public UserDto getCurrentUserDto(String userId) {
@@ -50,13 +56,16 @@ public class UserService {
 
     public UserDto updateProfile(ProfileUpdateDto dto) {
         User user = getCurrentUser();
+        String previousEmail = user.getEmail();
         updateUserFields(user, dto);
         userRepository.save(user);
+        finishEmailChange(user, previousEmail);
         return modelMapper.map(user, UserDto.class);
     }
 
     public UserDto updateProfile(ProfileUpdateRequest request) {
         User user = getCurrentUser();
+        String previousEmail = user.getEmail();
 
         updateUserFields(user, request);
 
@@ -77,6 +86,7 @@ public class UserService {
         }
 
         userRepository.save(user);
+        finishEmailChange(user, previousEmail);
         return modelMapper.map(user, UserDto.class);
     }
 
@@ -89,13 +99,7 @@ public class UserService {
     }
 
     private void updateFromDto(User user, ProfileUpdateDto dto) {
-        if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()
-                && !dto.getEmail().equals(user.getEmail())) {
-            if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
-                throw new CustomException("This email is already used by another account.");
-            }
-            user.setEmail(dto.getEmail());
-        }
+        applyEmailChange(user, dto.getEmail());
 
         if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().trim().isEmpty()
                 && !dto.getPhoneNumber().equals(user.getPhoneNumber())) {
@@ -122,13 +126,7 @@ public class UserService {
     }
 
     private void updateFromRequest(User user, ProfileUpdateRequest req) {
-        if (req.getEmail() != null && !req.getEmail().trim().isEmpty()
-                && !req.getEmail().equals(user.getEmail())) {
-            if (userRepository.findByEmail(req.getEmail()).isPresent()) {
-                throw new CustomException("This email is already used by another account.");
-            }
-            user.setEmail(req.getEmail());
-        }
+        applyEmailChange(user, req.getEmail());
 
         if (req.getPhoneNumber() != null && !req.getPhoneNumber().trim().isEmpty()
                 && !req.getPhoneNumber().equals(user.getPhoneNumber())) {
@@ -174,6 +172,11 @@ public class UserService {
         }
 
         userRepository.save(user);
+
+        if (user.getRole() == Role.ADMIN) {
+            audit.record(SecurityEventType.ADMIN_ROLE_CHANGED, user.getId(), getCurrentUser().getId(),
+                    "An administrator account was created by another administrator");
+        }
         return modelMapper.map(user, UserDto.class);
     }
 
@@ -181,12 +184,8 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new CustomException("We couldn't find that user."));
 
-        if (update.getEmail() != null && !update.getEmail().equals(user.getEmail())) {
-            if (userRepository.findByEmail(update.getEmail()).isPresent()) {
-                throw new CustomException("This email is already used by another account.");
-            }
-            user.setEmail(update.getEmail());
-        }
+        String previousEmail = user.getEmail();
+        applyEmailChange(user, update.getEmail());
 
         if (update.getPhoneNumber() != null && !update.getPhoneNumber().equals(user.getPhoneNumber())) {
             if (userRepository.findByPhoneNumber(update.getPhoneNumber()).isPresent()) {
@@ -206,9 +205,13 @@ public class UserService {
         if (update.getMiddleName() != null) user.setMiddleName(update.getMiddleName());
         if (update.getLastName() != null) user.setLastName(update.getLastName());
         if (update.getHomeAddress() != null) user.setHomeAddress(update.getHomeAddress());
-        if (update.getRole() != null) user.setRole(update.getRole());
 
         userRepository.save(user);
+        finishEmailChange(user, previousEmail);
+
+        if (update.getRole() != null) {
+            adminRoleService.changeRole(getCurrentUser(), user, update.getRole(), "ADMIN_USER_UPDATE");
+        }
         return modelMapper.map(user, UserDto.class);
     }
 
@@ -317,6 +320,26 @@ public class UserService {
 
         user.setVerified(false);
         userRepository.save(user);
+    }
+
+    private void applyEmailChange(User user, String requested) {
+        String email = EmailAddresses.normalize(requested);
+        if (email == null || email.equalsIgnoreCase(user.getEmail())) {
+            return;
+        }
+        boolean taken = userRepository.findAllByEmailIgnoreCase(email).stream()
+                .anyMatch(other -> !other.getId().equals(user.getId()));
+        if (taken) {
+            throw new CustomException("This email is already used by another account.");
+        }
+        user.setEmail(email);
+        user.setVerified(false);
+    }
+
+    private void finishEmailChange(User user, String previousEmail) {
+        if (previousEmail != null && user.getEmail() != null && !previousEmail.equals(user.getEmail())) {
+            authService.afterEmailChange(user, previousEmail);
+        }
     }
 
     private void preventSelfModification(String targetId, String action) {
