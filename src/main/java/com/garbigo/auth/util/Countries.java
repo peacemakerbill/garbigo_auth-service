@@ -16,6 +16,7 @@ public final class Countries {
 
     private static final Set<String> CODES = Arrays.stream(Locale.getISOCountries()).collect(Collectors.toSet());
     private static final PhoneNumberUtil PHONE_UTIL = PhoneNumberUtil.getInstance();
+    private static final Set<String> PHONE_REGIONS = PHONE_UTIL.getSupportedRegions();
 
     private static final List<Country> ALL = Arrays.stream(Locale.getISOCountries())
             .map(code -> new Country(code, Locale.of("", code).getDisplayCountry(Locale.ENGLISH), dial(code)))
@@ -44,6 +45,9 @@ public final class Countries {
     }
 
     private static String dial(String code) {
+        if (!PHONE_REGIONS.contains(code)) {
+            return null;
+        }
         int dial = PHONE_UTIL.getCountryCodeForRegion(code);
         return dial == 0 ? null : "+" + dial;
     }
