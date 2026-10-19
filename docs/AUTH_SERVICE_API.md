@@ -889,7 +889,7 @@ Errors (400 or 413):
 
 ### GET .../file endpoints
 
-Return the binary file with its content type. Files live in Google Drive and are never public; they are streamed through this service after a role check.
+Return the binary file with its content type. Files are saved on the server disk and are never public; they are streamed through this service after a role check.
 
 ### POST /collector-applications/me/submit
 

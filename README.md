@@ -71,7 +71,7 @@
   - [How It Works](#how-it-works)
   - [Application Statuses](#application-statuses)
   - [Required Documents](#required-documents)
-  - [Google Drive Setup](#google-drive-setup)
+  - [File Storage Setup](#file-storage-setup)
 - [Project Structure](#project-structure)
 - [Security Highlights](#security-highlights)
 - [Roadmap](#roadmap)
@@ -107,7 +107,7 @@ It's built as a standalone Spring Boot service, designed to sit behind an API ga
 **Collector Applications**
 - Customers apply to become collectors with a guided form: personal details, service area, vehicle, availability, payout details, emergency contact, references, and consents
 - Worldwide ready: any country, ID type (national ID, passport, residence permit), tax ID, payout method (mobile money, bank or wallet), time zone, and international phone numbers
-- Document uploads (ID card or passport, passport-style photo, police clearance, driving licence, vehicle registration, insurance, waste transport permit and more) stored privately in Google Drive, with the required list adapting to the vehicle and services chosen
+- Document uploads (ID card or passport, passport-style photo, police clearance, driving licence, vehicle registration, insurance, waste transport permit and more) stored privately on the server disk, with the required list adapting to the vehicle and services chosen
 - Staff review queue with search and filters, per-document verify or reject, statuses (submitted, in review, more information needed, verified, accepted, rejected, withdrawn), internal notes, and a status timeline
 - One-click promotion: an admin presses a single button and the applicant's role changes from `CLIENT` to `COLLECTOR`
 - A progress percentage, plain-language checklist, and next steps for the applicant, plus an email at every change
@@ -138,7 +138,7 @@ It's built as a standalone Spring Boot service, designed to sit behind an API ga
 | Authentication | JSON Web Tokens (`jjwt` 0.12.x) |
 | Social Sign-In | Google Identity Services, Facebook Graph API, GitHub OAuth |
 | Media Storage | Cloudinary (profile pictures) |
-| Document Storage | Google Drive API (collector application documents) |
+| Document Storage | Local or mounted disk folder (collector application documents) |
 | Phone Numbers | libphonenumber (international validation, saved in E.164 format) |
 | Email | Spring Mail (SMTP) + Thymeleaf templates |
 | Object Mapping | ModelMapper |
@@ -497,8 +497,8 @@ Configuration is loaded from `.env` at startup (via `spring.config.import`), fal
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Facebook Login |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `INTERNAL_API_KEY` | Shared secret other microservices send in the `X-Internal-Api-Key` header |
-| `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN` | Google Drive storage for collector application documents |
-| `GOOGLE_DRIVE_ROOT_FOLDER_NAME`, `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Optional. Name of the folder the service creates, or an existing one it created |
+| `STORAGE_ROOT` | Folder where collector application documents are saved. Default `/home/graham218/MyProjects/file-storage/Garbigo-Auth/` |
+| `STORAGE_APPLICATIONS_FOLDER`, `STORAGE_RESTRICT_PERMISSIONS` | Optional. Sub folder for applications, and owner-only permissions on new files |
 | `COLLECTOR_APPLICATION_MAX_FILE_MB` | Optional. Upload limit per document, default 5 |
 | `COLLECTOR_APPLICATION_REVIEW_DAYS` | Optional. The "we usually reply within N working days" text, default 3 |
 | `COLLECTOR_APPLICATION_PAGE_PATH` | Optional. Front-end route the email button opens, default `/collector/application` |
@@ -734,7 +734,7 @@ sequenceDiagram
     autonumber
     actor A as Applicant
     participant S as Auth Service
-    participant D as Google Drive
+    participant D as Disk storage
     actor R as Staff reviewer
     actor M as Admin
 
@@ -783,23 +783,15 @@ Files can be PDF, JPG, or PNG, up to 5 MB. The service checks the real file cont
 |---|---|---|---|
 | ID document (front and back, or the passport photo page), passport-style photo, police clearance certificate | Driving licence, vehicle logbook, insurance certificate | Waste transport permit | Proof of address, up to 5 other supporting documents |
 
-### Google Drive Setup
+### File Storage Setup
 
-Documents are stored in the Google Drive of a dedicated Google account, in a private folder per applicant. The service uses only the narrow `drive.file` scope, so it can see nothing except what it created itself.
+Documents are saved as files in a private folder on the machine that runs the service, one sub folder per applicant. The default is `/home/graham218/MyProjects/file-storage/Garbigo-Auth/`. To use another disk or a mounted Synology or NAS share, set it in `.env` and restart:
 
-1. In the Google Cloud Console, enable the **Google Drive API**.
-2. On the OAuth consent screen choose **External**, add the scope `https://www.googleapis.com/auth/drive.file`, and click **Publish app** so the refresh token does not expire after 7 days.
-3. Create an **OAuth client ID** of type **Web application** with the redirect URI `https://developers.google.com/oauthplayground`.
-4. In the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground), tick **Use your own OAuth credentials**, authorize the `drive.file` scope with the storage account, exchange the code, and copy the **refresh token**.
-5. Add the three values to `.env`:
-   ```properties
-   GOOGLE_DRIVE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-   GOOGLE_DRIVE_CLIENT_SECRET=your-client-secret
-   GOOGLE_DRIVE_REFRESH_TOKEN=your-refresh-token
-   ```
-6. Restart the service. The first upload creates the folder `Garbigo Collector Applications`.
+```properties
+STORAGE_ROOT=/mnt/synology/garbigo-auth/
+```
 
-Without these values the rest of the service works normally, and uploads return a friendly message saying document storage is unavailable.
+The user running the service must be able to read and write the folder, and a network share must be mounted whenever the service runs. Full details, backup and privacy notes are in `COLLECTOR_APPLICATIONS.md`.
 
 <br/>
 
@@ -832,7 +824,7 @@ src/main/resources
 - **Enumeration-conscious where it matters.** Wrong password and unknown email return the identical generic message; Spring Security's own `DaoAuthenticationProvider` behavior is relied on rather than re-implemented.
 - **No plaintext secrets in source control.** Configuration is environment-variable driven end to end.
 - **Consistent, human-readable error responses.** Every failure path — validation, business rule, or unexpected exception — returns clean JSON, never a raw stack trace or a leaked internal exception message.
-- **Applicant documents are private.** They live in a private Google Drive folder per applicant and are never shared by link. Staff open them only through the service, which checks their role on every request, and each view is logged with the staff member's id. ID numbers are masked in list views.
+- **Applicant documents are private.** They are saved in a private disk folder per applicant and are never shared by link. Staff open them only through the service, which checks their role on every request, and each view is logged with the staff member's id. ID numbers are masked in list views.
 - **Uploads are verified by content.** The service reads the file's first bytes to confirm it really is a PDF, JPG, or PNG, enforces a size limit, and replaces the original file name with a generated one, so a renamed executable or a path trick never reaches storage.
 - **Role changes need an admin.** Only an `ADMIN` can promote an applicant to `COLLECTOR`, and only from a fully verified application.
 - **Passwords are BCrypt-hashed**, and social-login accounts never receive a local password at all.

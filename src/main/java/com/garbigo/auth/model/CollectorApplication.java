@@ -87,7 +87,7 @@ public class CollectorApplication {
     private Boolean consentToBackgroundCheck;
     private Boolean confirmsInfoIsTrue;
 
-    private String driveFolderId;
+    private String storageFolder;
     private List<ApplicationDocument> documents = new ArrayList<>();
 
     private List<StatusHistoryEntry> history = new ArrayList<>();
@@ -126,7 +126,7 @@ public class CollectorApplication {
     public static class ApplicationDocument {
         private String id;
         private DocumentType type;
-        private String driveFileId;
+        private String storageFile;
         private String fileName;
         private String mimeType;
         private long sizeBytes;

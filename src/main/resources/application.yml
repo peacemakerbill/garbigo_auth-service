@@ -72,9 +72,14 @@ rabbitmq:
 app:
   url: ${APP_URL:http://localhost:3000}
 
+  storage:
+    root: ${STORAGE_ROOT:/home/graham218/MyProjects/file-storage/Garbigo-Auth/}
+    applications-folder: ${STORAGE_APPLICATIONS_FOLDER:collector-applications}
+    restrict-permissions: ${STORAGE_RESTRICT_PERMISSIONS:true}
+
   admin:
     seed-enabled: ${ADMIN_SEED_ENABLED:true}
-    min-password-length: ${ADMIN_SEED_MIN_PASSWORD_LENGTH:12}
+    min-password-length: ${ADMIN_SEED_MIN_PASSWORD_LENGTH:8}
     seed:
       - email: ${ADMIN_1_EMAIL:}
         username: ${ADMIN_1_USERNAME:}
@@ -155,12 +160,6 @@ app:
 
 google:
   client-id: ${GOOGLE_CLIENT_ID}
-  drive:
-    client-id: ${GOOGLE_DRIVE_CLIENT_ID:}
-    client-secret: ${GOOGLE_DRIVE_CLIENT_SECRET:}
-    refresh-token: ${GOOGLE_DRIVE_REFRESH_TOKEN:}
-    root-folder-id: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:}
-    root-folder-name: ${GOOGLE_DRIVE_ROOT_FOLDER_NAME:Garbigo Collector Applications}
 
 collector-application:
   max-file-mb: ${COLLECTOR_APPLICATION_MAX_FILE_MB:5}

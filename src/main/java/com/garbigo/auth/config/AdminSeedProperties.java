@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 public class AdminSeedProperties {
 
     private boolean seedEnabled = true;
-    private int minPasswordLength = 12;
+    private int minPasswordLength = 8;
     private List<Account> seed = new ArrayList<>();
 
     @Data

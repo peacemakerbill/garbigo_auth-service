@@ -34,7 +34,7 @@ ADMIN_1_PHONE=0712345678
 ADMIN_1_PASSWORD=a-long-one-time-password-2026
 ```
 
-- A slot is used only when it has a valid email and a password of at least `ADMIN_SEED_MIN_PASSWORD_LENGTH` characters (default 12) containing letters and numbers. Anything else is skipped with a warning that names the slot and a masked email, never the password.
+- A slot is used only when it has a valid email and a password of at least `ADMIN_SEED_MIN_PASSWORD_LENGTH` characters (default 8) containing letters and numbers. Anything else is skipped with a warning that names the slot and a masked email, never the password.
 - The account is created as a verified, active `ADMIN`. A missing first name becomes "Admin". A missing username is generated from the name, and a taken one gets a number added.
 - If the email already has an account, nothing is changed, including its password. Changing the value in `.env` later has no effect on an existing account.
 - The seeded email is added to `INITIAL_ADMIN_EMAILS` automatically, so no invitation is sent and it does not appear in the drift warning.

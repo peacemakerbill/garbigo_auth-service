@@ -110,7 +110,7 @@ public class CollectorApplicationService {
     private final CollectorApplicationRepository applications;
     private final UserRepository users;
     private final MongoTemplate mongo;
-    private final GoogleDriveStorageService drive;
+    private final DiskStorageService storage;
     private final ApplicationEmailService emails;
     private final ApplicationMapper mapper;
 
@@ -118,12 +118,12 @@ public class CollectorApplicationService {
     private int maxFileMb;
 
     public CollectorApplicationService(CollectorApplicationRepository applications, UserRepository users,
-                                       MongoTemplate mongo, GoogleDriveStorageService drive,
+                                       MongoTemplate mongo, DiskStorageService storage,
                                        ApplicationEmailService emails, ApplicationMapper mapper) {
         this.applications = applications;
         this.users = users;
         this.mongo = mongo;
-        this.drive = drive;
+        this.storage = storage;
         this.emails = emails;
         this.mapper = mapper;
     }
@@ -234,21 +234,19 @@ public class CollectorApplicationService {
 
         UploadedFileRules.ValidatedFile valid = UploadedFileRules.validate(file, type, maxFileMb);
 
-        String folderId = app.getDriveFolderId();
-        if (folderId == null) {
-            folderId = drive.ensureFolder(app.getReferenceNumber() + " - " + safeName(app.getApplicantName()),
-                    drive.rootFolderId());
-            app.setDriveFolderId(folderId);
+        String folder = app.getStorageFolder();
+        if (folder == null) {
+            folder = storage.applicationFolder(app.getReferenceNumber() + " - " + safeName(app.getApplicantName()));
+            app.setStorageFolder(folder);
         }
 
         String storedName = type.name() + "_" + UUID.randomUUID().toString().substring(0, 8) + "." + valid.extension();
-        GoogleDriveStorageService.StoredFile stored = drive.upload(folderId, storedName, valid.mimeType(),
-                valid.bytes(), "Garbigo collector application " + app.getReferenceNumber() + " - " + type.label());
+        DiskStorageService.StoredFile stored = storage.upload(folder, storedName, valid.bytes());
 
         ApplicationDocument doc = new ApplicationDocument();
         doc.setId(UUID.randomUUID().toString());
         doc.setType(type);
-        doc.setDriveFileId(stored.fileId());
+        doc.setStorageFile(stored.path());
         doc.setFileName(valid.displayName());
         doc.setMimeType(valid.mimeType());
         doc.setSizeBytes(valid.bytes().length);
@@ -257,13 +255,13 @@ public class CollectorApplicationService {
         doc.setUploadedAt(Instant.now());
         doc.setReviewStatus(DocumentReviewStatus.PENDING);
 
-        String oldFileId = existing == null ? null : existing.getDriveFileId();
+        String oldFile = existing == null ? null : existing.getStorageFile();
         if (existing != null) {
             docs.remove(existing);
         }
         docs.add(doc);
         applications.save(app);
-        drive.deleteQuietly(oldFileId);
+        storage.deleteQuietly(oldFile);
         return mapper.toApplicantResponse(app);
     }
 
@@ -278,7 +276,7 @@ public class CollectorApplicationService {
         }
         app.getDocuments().remove(doc);
         applications.save(app);
-        drive.deleteQuietly(doc.getDriveFileId());
+        storage.deleteQuietly(doc.getStorageFile());
         return mapper.toApplicantResponse(app);
     }
 
@@ -329,7 +327,7 @@ public class CollectorApplicationService {
         CollectorApplication app = applications.findFirstByUserIdOrderByCreatedAtDesc(user.getId())
                 .orElseThrow(() -> new CustomException("You don't have an application yet."));
         ApplicationDocument doc = findDocument(app, documentId);
-        return new DocumentFile(drive.download(doc.getDriveFileId()), doc.getFileName(), doc.getMimeType());
+        return new DocumentFile(storage.download(doc.getStorageFile()), doc.getFileName(), doc.getMimeType());
     }
 
     // ============================== STAFF ==============================
@@ -589,7 +587,7 @@ public class CollectorApplicationService {
         ApplicationDocument doc = findDocument(app, documentId);
         log.info("APPLICATION DOCUMENT VIEWED: staff={} application={} document={} type={}",
                 staff.getId(), app.getReferenceNumber(), doc.getId(), doc.getType());
-        return new DocumentFile(drive.download(doc.getDriveFileId()), doc.getFileName(), doc.getMimeType());
+        return new DocumentFile(storage.download(doc.getStorageFile()), doc.getFileName(), doc.getMimeType());
     }
 
     // ============================== INTERNALS ==============================
@@ -739,7 +737,10 @@ public class CollectorApplicationService {
         if (name == null) {
             return "Applicant";
         }
-        String cleaned = name.replaceAll("[^A-Za-z0-9 ]", "").trim();
+        String cleaned = name.replaceAll("[^A-Za-z0-9 ]", "").replaceAll("\\s+", " ").trim();
+        if (cleaned.length() > 60) {
+            cleaned = cleaned.substring(0, 60).trim();
+        }
         return cleaned.isEmpty() ? "Applicant" : cleaned;
     }
 

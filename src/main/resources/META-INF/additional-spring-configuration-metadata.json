@@ -74,31 +74,22 @@
       "description": "Shared secret other microservices send as the X-Internal-Api-Key header on Feign calls into this service."
     },
     {
-      "name": "google.drive.client-id",
+      "name": "app.storage.root",
       "type": "java.lang.String",
-      "description": "OAuth Client ID of the Google Cloud project used to store collector application documents in Google Drive."
+      "description": "Folder on the server (or a mounted NAS or Synology share) where uploaded collector application documents are saved. Created if it does not exist.",
+      "defaultValue": "/home/graham218/MyProjects/file-storage/Garbigo-Auth/"
     },
     {
-      "name": "google.drive.client-secret",
+      "name": "app.storage.applications-folder",
       "type": "java.lang.String",
-      "description": "OAuth Client Secret paired with the Google Drive client ID."
+      "description": "Sub folder of the storage root that holds one folder per collector application.",
+      "defaultValue": "collector-applications"
     },
     {
-      "name": "google.drive.refresh-token",
-      "type": "java.lang.String",
-      "description": "Long-lived OAuth refresh token for the Google account whose Drive holds applicant documents. Keep the OAuth consent screen published so it does not expire."
-    },
-    {
-      "name": "google.drive.root-folder-id",
-      "type": "java.lang.String",
-      "description": "Optional ID of an existing Drive folder created by this service. Leave blank to let the service create and find its own folder.",
-      "defaultValue": ""
-    },
-    {
-      "name": "google.drive.root-folder-name",
-      "type": "java.lang.String",
-      "description": "Name of the Drive folder that holds one subfolder per collector application.",
-      "defaultValue": "Garbigo Collector Applications"
+      "name": "app.storage.restrict-permissions",
+      "type": "java.lang.Boolean",
+      "description": "Make new folders and files readable only by the user running the service.",
+      "defaultValue": true
     },
     {
       "name": "collector-application.max-file-mb",
