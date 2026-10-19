@@ -4,7 +4,7 @@ This document explains how administrator accounts are provisioned, how sign in a
 
 ## 1. Administrator accounts
 
-No administrator, password or secret is written in the code. Two settings decide who can become `ADMIN`. Both take a comma separated list. Each entry is trimmed, lowercased, checked for a valid address and de-duplicated. Invalid entries are skipped, logged with a masked address and recorded in the audit log, and the rest of the list still works. Wrapping quotes and `;` or spaces as separators are tolerated.
+No administrator, password or secret is written in the code; accounts come only from `.env` (see "Creating admin accounts from configuration" below). Two settings decide who can become `ADMIN`. Both take a comma separated list. Each entry is trimmed, lowercased, checked for a valid address and de-duplicated. Invalid entries are skipped, logged with a masked address and recorded in the audit log, and the rest of the list still works. Wrapping quotes and `;` or spaces as separators are tolerated.
 
 | Setting | What it does |
 |---|---|
@@ -19,6 +19,27 @@ Example `.env`:
 INITIAL_ADMIN_EMAILS=owner@garbigo.com
 AUTO_ADMIN_EMAILS=ops.lead@garbigo.com,cto@garbigo.com
 ```
+
+### Creating admin accounts from configuration
+
+For a first deployment you can have the service create the administrator accounts itself. Fill up to three slots in `.env` (the same names are listed in `.env.example`):
+
+```
+ADMIN_1_EMAIL=owner@garbigo.com
+ADMIN_1_USERNAME=owner
+ADMIN_1_FIRST_NAME=Bill
+ADMIN_1_MIDDLE_NAME=Graham
+ADMIN_1_LAST_NAME=Peacemaker
+ADMIN_1_PHONE=0712345678
+ADMIN_1_PASSWORD=a-long-one-time-password-2026
+```
+
+- A slot is used only when it has a valid email and a password of at least `ADMIN_SEED_MIN_PASSWORD_LENGTH` characters (default 12) containing letters and numbers. Anything else is skipped with a warning that names the slot and a masked email, never the password.
+- The account is created as a verified, active `ADMIN`. A missing first name becomes "Admin". A missing username is generated from the name, and a taken one gets a number added.
+- If the email already has an account, nothing is changed, including its password. Changing the value in `.env` later has no effect on an existing account.
+- The seeded email is added to `INITIAL_ADMIN_EMAILS` automatically, so no invitation is sent and it does not appear in the drift warning.
+- The password is stored only as a hash. Treat the value in `.env` as a one time password: sign in, change it with `POST /auth/change-password`, then remove it from `.env`. Keep `.env` out of git.
+- Set `ADMIN_SEED_ENABLED=false` to turn the whole feature off.
 
 ### What makes a grant safe
 
@@ -40,9 +61,24 @@ Roles are never removed automatically. Removing an address from the lists does n
 
 ### Moving away from the old built in admin
 
-The old `AdminUserInitializer` created a fixed admin account with a fixed password. Delete that file. If your database already contains that account, it still exists and its password is public in your git history. After your real admin is provisioned, deactivate that account or change its password, then rotate anything that account could reach.
+The old `AdminUserInitializer` created a fixed admin account with a fixed password. Delete that file; `AdminSeedRunner` replaces it and reads everything from `.env`. If your database already contains that account, it still exists and its password is public in your git history. After your real admin is provisioned, deactivate that account or change its password, then rotate anything that account could reach.
 
 ## 2. Sign in alerts
+
+### Email templates
+
+Every email template lives in `src/main/resources/templates/emails/` and shares one look through `layout.html`:
+
+| File | Used for |
+|---|---|
+| `layout.html` | Shared pieces: page head, banner, buttons, link box, notice box, details rows, steps and footer. Change the brand colours or footer here once. |
+| `verify-account.html` | Email verification |
+| `reset-password.html` | Password reset link |
+| `application-update.html` | Collector application status updates |
+| `security-notice.html` | All security notices (sign-ins, role changes, lockouts and so on) |
+
+Each page picks a tone (`success`, `info`, `warning`, `danger` or `neutral`) that sets its colours. No images or emoji are used, so nothing depends on remote images being loaded. The old `verify-account.html` and `reset-password.html` in the root of `templates/` must be deleted after you copy the new ones in.
+
 
 After each successful sign in the service checks, in the background, whether the owner should be told. The sign in itself never waits for this and never fails because of it.
 

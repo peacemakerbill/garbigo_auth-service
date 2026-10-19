@@ -72,6 +72,32 @@ rabbitmq:
 app:
   url: ${APP_URL:http://localhost:3000}
 
+  admin:
+    seed-enabled: ${ADMIN_SEED_ENABLED:true}
+    min-password-length: ${ADMIN_SEED_MIN_PASSWORD_LENGTH:12}
+    seed:
+      - email: ${ADMIN_1_EMAIL:}
+        username: ${ADMIN_1_USERNAME:}
+        first-name: ${ADMIN_1_FIRST_NAME:}
+        middle-name: ${ADMIN_1_MIDDLE_NAME:}
+        last-name: ${ADMIN_1_LAST_NAME:}
+        phone-number: ${ADMIN_1_PHONE:}
+        password: ${ADMIN_1_PASSWORD:}
+      - email: ${ADMIN_2_EMAIL:}
+        username: ${ADMIN_2_USERNAME:}
+        first-name: ${ADMIN_2_FIRST_NAME:}
+        middle-name: ${ADMIN_2_MIDDLE_NAME:}
+        last-name: ${ADMIN_2_LAST_NAME:}
+        phone-number: ${ADMIN_2_PHONE:}
+        password: ${ADMIN_2_PASSWORD:}
+      - email: ${ADMIN_3_EMAIL:}
+        username: ${ADMIN_3_USERNAME:}
+        first-name: ${ADMIN_3_FIRST_NAME:}
+        middle-name: ${ADMIN_3_MIDDLE_NAME:}
+        last-name: ${ADMIN_3_LAST_NAME:}
+        phone-number: ${ADMIN_3_PHONE:}
+        password: ${ADMIN_3_PASSWORD:}
+
   security:
     initial-admin-emails: ${INITIAL_ADMIN_EMAILS:}
     auto-admin-emails: ${AUTO_ADMIN_EMAILS:}

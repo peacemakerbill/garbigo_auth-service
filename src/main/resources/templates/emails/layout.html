@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <meta name="x-apple-disable-message-reformatting">
+    <title th:text="${title}">Garbigo</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings xmlns:o="urn:schemas-microsoft-com:office:office">
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #eef3ef; }
+        a { color: #1f7a4d; }
+        @media only screen and (max-width: 640px) {
+            .email-container { width: 100% !important; }
+            .outer-pad { padding: 16px 10px !important; }
+            .px { padding-left: 24px !important; padding-right: 24px !important; }
+            .hero-title { font-size: 26px !important; }
+            .tagline { display: none !important; }
+            .detail-label { display: block !important; width: 100% !important; padding-bottom: 0 !important; border-top: 0 !important; }
+            .detail-value { display: block !important; width: 100% !important; padding-top: 2px !important; border-top: 0 !important; }
+            .stack { display: block !important; width: 100% !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+<th:block th:fragment="preheader(text)"><!--no-text-start--><div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#eef3ef; opacity:0;" th:text="${text}">Preview text</div><!--no-text-end--></th:block>
+
+<th:block th:fragment="banner(eyebrow, title, tone)"
+          th:with="dark=${tone == 'danger'} ? '#6e1511' : (${tone == 'warning'} ? '#6b3a07' : (${tone == 'info'} ? '#0f2f55' : (${tone == 'neutral'} ? '#1e293b' : '#0b3d2e'))),
+                   accent=${tone == 'danger'} ? '#b3261e' : (${tone == 'warning'} ? '#b45309' : (${tone == 'info'} ? '#1d5fa8' : (${tone == 'neutral'} ? '#334155' : '#1f7a4d'))),
+                   light=${tone == 'danger'} ? '#ffb4ab' : (${tone == 'warning'} ? '#fcd34d' : (${tone == 'info'} ? '#9cc7f5' : (${tone == 'neutral'} ? '#cbd5e1' : '#86e0ad')))">
+    <tr>
+        <td th:attr="bgcolor=${dark}"
+            th:style="'background-color:' + ${dark} + '; background-image:linear-gradient(135deg,' + ${dark} + ' 0%,' + ${dark} + ' 55%,' + ${accent} + ' 100%); padding:0;'">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="px" style="padding:26px 40px 0 40px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td align="left" valign="middle">
+                                    <table role="presentation" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td width="12" height="12" th:attr="bgcolor=${light}"
+                                                th:style="'width:12px; height:12px; background-color:' + ${light} + '; border-radius:3px; font-size:0; line-height:0;'">&nbsp;</td>
+                                            <td style="padding-left:10px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:15px; font-weight:700; letter-spacing:4px; color:#ffffff;"
+                                                th:text="${#strings.toUpperCase(appName ?: 'Garbigo')}">GARBIGO</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td class="tagline" align="right" valign="middle"
+                                    th:style="'font-family:\'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:' + ${light} + ';'">Smart Garbage System</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="px" style="padding:44px 40px 12px 40px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                        <div th:style="'font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:' + ${light} + '; margin:0 0 12px 0;'"
+                             th:text="${eyebrow}">Notice</div>
+                        <h1 class="hero-title" style="margin:0; font-size:30px; line-height:1.2; font-weight:700; color:#ffffff;"
+                            th:text="${title}">Title</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:0 0 36px 0; font-size:0; line-height:0;">&nbsp;</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td height="4" th:attr="bgcolor=${light}" th:style="'height:4px; background-color:' + ${light} + '; font-size:0; line-height:0;'">&nbsp;</td>
+    </tr>
+</th:block>
+
+<table th:fragment="button(url, label, tone)" role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px 0;"
+       th:with="accent=${tone == 'danger'} ? '#b3261e' : (${tone == 'warning'} ? '#b45309' : (${tone == 'info'} ? '#1d5fa8' : (${tone == 'neutral'} ? '#334155' : '#1f7a4d')))">
+    <tr>
+        <td th:attr="bgcolor=${accent}" th:style="'background-color:' + ${accent} + '; border-radius:10px;'">
+            <a th:href="${url}" target="_blank" th:text="${label}"
+               style="display:inline-block; padding:15px 34px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:16px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:10px;">Continue</a>
+        </td>
+    </tr>
+</table>
+
+<table th:fragment="buttonOutline(url, label, tone)" role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 24px 0;"
+       th:with="accent=${tone == 'danger'} ? '#b3261e' : (${tone == 'warning'} ? '#b45309' : (${tone == 'info'} ? '#1d5fa8' : (${tone == 'neutral'} ? '#334155' : '#1f7a4d')))">
+    <tr>
+        <td bgcolor="#ffffff" th:style="'background-color:#ffffff; border:2px solid ' + ${accent} + '; border-radius:10px;'">
+            <a th:href="${url}" target="_blank" th:text="${label}"
+               th:style="'display:inline-block; padding:12px 28px; font-family:\'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size:15px; font-weight:700; color:' + ${accent} + '; text-decoration:none; border-radius:10px;'">Review</a>
+        </td>
+    </tr>
+</table>
+
+<table th:fragment="linkbox(url)" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
+    <tr>
+        <td bgcolor="#f4f8f5" style="background-color:#f4f8f5; border:1px dashed #c9d8cf; border-radius:10px; padding:14px 16px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="font-size:12px; line-height:1.4; color:#6b7a72; margin:0 0 6px 0;">If the button does not work, copy this link into your browser</div>
+            <a th:href="${url}" th:text="${url}" target="_blank"
+               style="font-family:Consolas, Menlo, 'Courier New', monospace; font-size:12px; line-height:1.5; color:#1f7a4d; word-break:break-all;">link</a>
+        </td>
+    </tr>
+</table>
+
+<table th:fragment="callout(title, text, tone)" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px 0;"
+       th:with="dark=${tone == 'danger'} ? '#6e1511' : (${tone == 'warning'} ? '#6b3a07' : (${tone == 'info'} ? '#0f2f55' : (${tone == 'neutral'} ? '#1e293b' : '#0b3d2e'))),
+                accent=${tone == 'danger'} ? '#b3261e' : (${tone == 'warning'} ? '#b45309' : (${tone == 'info'} ? '#1d5fa8' : (${tone == 'neutral'} ? '#334155' : '#1f7a4d'))),
+                soft=${tone == 'danger'} ? '#fdecea' : (${tone == 'warning'} ? '#fff4e0' : (${tone == 'info'} ? '#e8f1fb' : (${tone == 'neutral'} ? '#f1f5f9' : '#e8f5ee'))),
+                edge=${tone == 'danger'} ? '#f5c6c2' : (${tone == 'warning'} ? '#fbd38d' : (${tone == 'info'} ? '#bcd6f2' : (${tone == 'neutral'} ? '#cbd5e1' : '#bfe3cd')))">
+    <tr>
+        <td width="5" th:attr="bgcolor=${accent}" th:style="'width:5px; background-color:' + ${accent} + '; border-radius:10px 0 0 10px; font-size:0; line-height:0;'">&nbsp;</td>
+        <td th:attr="bgcolor=${soft}"
+            th:style="'background-color:' + ${soft} + '; border:1px solid ' + ${edge} + '; border-left:0; border-radius:0 10px 10px 0; padding:16px 20px; font-family:\'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;'">
+            <p th:if="${title != null}" th:style="'margin:0 0 6px 0; font-size:14px; font-weight:700; color:' + ${dark} + ';'" th:text="${title}">Title</p>
+            <p style="margin:0; font-size:14px; line-height:1.6; color:#33423a;" th:text="${text}">Text</p>
+        </td>
+    </tr>
+</table>
+
+<span th:fragment="pill(text, tone)"
+      th:with="accent=${tone == 'danger'} ? '#b3261e' : (${tone == 'warning'} ? '#b45309' : (${tone == 'info'} ? '#1d5fa8' : (${tone == 'neutral'} ? '#334155' : '#1f7a4d'))),
+               soft=${tone == 'danger'} ? '#fdecea' : (${tone == 'warning'} ? '#fff4e0' : (${tone == 'info'} ? '#e8f1fb' : (${tone == 'neutral'} ? '#f1f5f9' : '#e8f5ee')))"
+      th:style="'display:inline-block; padding:5px 14px; border-radius:999px; font-size:13px; font-weight:700; color:' + ${accent} + '; background-color:' + ${soft} + ';'"
+      th:text="${text}">Status</span>
+
+<th:block th:fragment="detail(label, value)"><tr th:if="${value != null}">
+    <th class="detail-label" align="left"
+        style="padding:12px 18px; width:36%; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:0.4px; text-transform:uppercase; color:#6b7a72; font-weight:600; vertical-align:top; border-top:1px solid #e6ede8;"
+        th:text="${label}">Label</th>
+    <td class="detail-value"
+        style="padding:12px 18px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:14px; line-height:1.5; color:#14231c; border-top:1px solid #e6ede8; word-break:break-word;"
+        th:text="${value}">Value</td>
+</tr></th:block>
+
+<tr th:fragment="step(number, text, tone)"
+    th:with="accent=${tone == 'danger'} ? '#b3261e' : (${tone == 'warning'} ? '#b45309' : (${tone == 'info'} ? '#1d5fa8' : (${tone == 'neutral'} ? '#334155' : '#1f7a4d')))">
+    <td width="40" valign="top" style="padding:0 0 14px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+                <td align="center" valign="middle" width="28" height="28" th:attr="bgcolor=${accent}"
+                    th:style="'width:28px; height:28px; border-radius:14px; background-color:' + ${accent} + '; color:#ffffff; font-family:\'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size:13px; font-weight:700; line-height:28px; text-align:center;'"
+                    th:text="${number}">1</td>
+            </tr>
+        </table>
+    </td>
+    <td valign="top" style="padding:4px 0 14px 0; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:15px; line-height:1.55; color:#33423a;"
+        th:text="${text}">Step</td>
+</tr>
+
+<tr th:fragment="footer(email, sentAt)">
+    <td bgcolor="#f4f8f5" class="px"
+        style="background-color:#f4f8f5; border-top:1px solid #e2e9e4; padding:28px 40px; text-align:center; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <p style="margin:0 0 12px 0; font-size:13px; font-weight:700; letter-spacing:3px; color:#0b3d2e;"
+           th:text="${#strings.toUpperCase(appName ?: 'Garbigo')}">GARBIGO</p>
+        <p style="margin:0 0 6px 0; font-size:12px; line-height:1.6; color:#6b7a72;">
+            Sent to <span th:text="${email}">your email</span> on <span th:text="${sentAt}">the send date</span>.
+        </p>
+        <p style="margin:0 0 14px 0; font-size:12px; line-height:1.6; color:#6b7a72;">
+            We will never ask for your password, sign-in codes or tokens by email.
+        </p>
+        <p style="margin:0; font-size:12px; color:#8a988f;">
+            &copy; <span th:text="${year ?: #dates.year(#dates.createNow())}">2026</span>
+            <span th:text="${appName ?: 'Garbigo'}">Garbigo</span>. All rights reserved.
+        </p>
+    </td>
+</tr>
+
+</body>
+</html>

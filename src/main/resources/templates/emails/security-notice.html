@@ -1,69 +1,49 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="color-scheme" content="light">
-    <meta name="supported-color-schemes" content="light">
-    <title th:text="${subject}">Garbigo security notice</title>
-    <style>
-        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        body { margin: 0; padding: 0; width: 100% !important; background-color: #f0f2f5; }
-        @media only screen and (max-width: 620px) {
-            .email-container { width: 100% !important; }
-            .fluid-padding { padding-left: 20px !important; padding-right: 20px !important; }
-            .detail-label { display: block !important; width: 100% !important; padding-bottom: 0 !important; }
-            .detail-value { display: block !important; width: 100% !important; padding-top: 2px !important; }
-        }
-    </style>
-</head>
-<body style="margin:0; padding:0; background-color:#f0f2f5;">
+<head th:replace="~{emails/layout :: head(${subject})}"></head>
+<body style="margin:0; padding:0; background-color:#eef3ef;"
+      th:with="signInEvent=${event == 'NEW_SIGN_IN' or event == 'UNTRUSTED_SIGN_IN' or event == 'SUSPICIOUS_SIGN_IN'},
+               adminEvent=${event == 'ADMIN_INVITATION' or event == 'ADMIN_ROLE_GRANTED' or event == 'ROLE_CHANGED'},
+               tone=${event == 'SUSPICIOUS_SIGN_IN' or event == 'ACCOUNT_LOCKED' or event == 'TOKEN_REPLAY'} ? 'danger' : (${event == 'NEW_SIGN_IN' or event == 'UNTRUSTED_SIGN_IN'} ? 'info' : (${event == 'ADMIN_INVITATION' or event == 'UNAUTHORIZED_REPORT_COMPLETED'} ? 'success' : 'warning')),
+               heading=${#strings.replace(subject, 'Garbigo - ', '')}">
+<th:block th:replace="~{emails/layout :: preheader(${heading})}"></th:block>
 
-<!--no-text-start-->
-<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f0f2f5;"
-     th:text="${subject}">Security notice</div>
-<!--no-text-end-->
-
-<center style="width:100%; background-color:#f0f2f5;">
-    <table role="presentation" class="email-container" align="center" cellpadding="0" cellspacing="0" width="100%"
-           style="max-width:600px; margin:0 auto;">
+<center style="width:100%; background-color:#eef3ef;">
+    <!--[if mso]><table role="presentation" align="center" width="600" style="width:600px;"><tr><td><![endif]-->
+    <table role="presentation" class="email-container" align="center" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto;">
         <tr>
-            <td style="padding:32px 0;">
+            <td class="outer-pad" style="padding:32px 12px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                       style="background-color:#ffffff; border-radius:12px; overflow:hidden;">
+                       style="background-color:#ffffff; border:1px solid #dfe8e2; border-radius:16px; overflow:hidden;">
+
+                    <th:block th:if="${signInEvent}">
+                        <th:block th:replace="~{emails/layout :: banner('Sign-in alert', ${heading}, ${tone})}"></th:block>
+                    </th:block>
+                    <th:block th:if="${!signInEvent and adminEvent}">
+                        <th:block th:replace="~{emails/layout :: banner('Administrator access', ${heading}, ${tone})}"></th:block>
+                    </th:block>
+                    <th:block th:if="${!signInEvent and !adminEvent}">
+                        <th:block th:replace="~{emails/layout :: banner('Account security', ${heading}, ${tone})}"></th:block>
+                    </th:block>
 
                     <tr>
-                        <td th:with="alertColor=${event == 'SUSPICIOUS_SIGN_IN' or event == 'ACCOUNT_LOCKED' or event == 'TOKEN_REPLAY'} ? '#b3261e' : '#2e7d32'"
-                            th:attr="bgcolor=${alertColor}"
-                            th:style="'padding:26px 30px; text-align:center; background-color:' + ${alertColor} + ';'">
-                            <h1 style="margin:0; font-family:Helvetica, Arial, sans-serif; font-size:24px; font-weight:bold; color:#ffffff;"
-                                th:text="${appName}">Garbigo</h1>
-                        </td>
-                    </tr>
+                        <td class="px" style="padding:36px 40px 20px 40px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
 
-                    <tr>
-                        <td class="fluid-padding" style="padding:32px 40px 8px 40px; font-family:Helvetica, Arial, sans-serif;">
-
-                            <h2 style="margin:0 0 16px 0; font-size:21px; line-height:1.3; color:#1b1b1b;"
-                                th:text="${subject}">Security notice</h2>
-
-                            <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                            <p style="margin:0 0 16px 0; font-size:18px; line-height:1.5; font-weight:600; color:#14231c;">
                                 Hi <span th:text="${name}">there</span>,
                             </p>
 
                             <th:block th:switch="${event}">
 
                                 <th:block th:case="'NEW_SIGN_IN'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Someone signed in to your Garbigo account from a device we have not seen before.
                                         If this was you, you do not need to do anything.
                                     </p>
                                 </th:block>
 
                                 <th:block th:case="'UNTRUSTED_SIGN_IN'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Your Garbigo account was just used to sign in from a device that is not marked as trusted.
                                         If this was you, you do not need to do anything. You can mark devices you use often as
                                         trusted in your security settings to stop these notices.
@@ -71,7 +51,7 @@
                                 </th:block>
 
                                 <th:block th:case="'SUSPICIOUS_SIGN_IN'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         We noticed a sign-in to your Garbigo account that looks unusual. We did not block it,
                                         but please check that it was you.
                                     </p>
@@ -81,42 +61,35 @@
                                 </th:block>
 
                                 <th:block th:case="'ADMIN_INVITATION'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         This email address has been set up as an administrator for Garbigo. No account has been
                                         created for you yet and no password has been set.
                                     </p>
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         To get started, create your account using this exact email address (or sign in with Google
                                         or GitHub using it), then verify your email. Administrator access is added automatically
                                         once your email is verified.
                                     </p>
-                                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px 0;">
-                                        <tr>
-                                            <td bgcolor="#2e7d32" style="background-color:#2e7d32; border-radius:8px;">
-                                                <a th:href="${inviteUrl}" target="_blank"
-                                                   style="display:inline-block; padding:13px 28px; font-family:Helvetica, Arial, sans-serif; font-size:16px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:8px;">Create my account</a>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                    <p style="margin:0 0 16px 0; font-size:14px; line-height:1.6; color:#666666;">
+                                    <th:block th:replace="~{emails/layout :: button(${inviteUrl}, 'Create my account', 'success')}"></th:block>
+                                    <p style="margin:0 0 16px 0; font-size:14px; line-height:1.6; color:#6b7a72;">
                                         If you were not expecting this, you can ignore this email. Nothing happens unless you
                                         register and verify this address.
                                     </p>
                                 </th:block>
 
                                 <th:block th:case="'ADMIN_ROLE_GRANTED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Administrator access was added to your Garbigo account
                                         <span th:text="${source}">after you verified your email address</span>.
                                     </p>
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Administrators can manage users and review sensitive information, so please keep your
                                         password private and review your security settings regularly.
                                     </p>
                                 </th:block>
 
                                 <th:block th:case="'ROLE_CHANGED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         The access level on your Garbigo account was changed
                                         from <strong th:text="${previousRole}">CLIENT</strong>
                                         to <strong th:text="${newRole}">ADMIN</strong>.
@@ -125,20 +98,20 @@
                                 </th:block>
 
                                 <th:block th:case="'PASSWORD_CHANGED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         The password on your Garbigo account was changed. We signed out your other devices.
                                     </p>
                                 </th:block>
 
                                 <th:block th:case="'PASSWORD_RESET_COMPLETED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Your Garbigo password was reset using a link sent to this email address. All devices were
                                         signed out, so please sign in again with your new password.
                                     </p>
                                 </th:block>
 
                                 <th:block th:case="'EMAIL_CHANGED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         The email address on your Garbigo account was changed to
                                         <strong th:text="${newEmailMasked}">n***@example.com</strong>.
                                         The new address must be verified before it can be used, and your devices were signed out.
@@ -146,7 +119,7 @@
                                 </th:block>
 
                                 <th:block th:case="'ACCOUNT_LOCKED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         There were too many failed sign-in attempts on your Garbigo account, so sign-in from that
                                         location is paused for about <strong th:text="${lockMinutes}">5</strong> minute(s).
                                         Your password has not been changed and nobody has gained access.
@@ -154,20 +127,20 @@
                                 </th:block>
 
                                 <th:block th:case="'UNAUTHORIZED_REPORT_COMPLETED'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         You reported a sign-in as not yours, and we have secured your account: the reported
                                         session was ended, the device was removed and your other sessions were signed out.
                                     </p>
-                                    <p th:if="${resetEmailSent}" style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p th:if="${resetEmailSent}" style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         We also sent you a separate email with a link to choose a new password.
                                     </p>
-                                    <p th:unless="${resetEmailSent}" style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p th:unless="${resetEmailSent}" style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         We recommend changing your password now.
                                     </p>
                                 </th:block>
 
                                 <th:block th:case="'TOKEN_REPLAY'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Someone repeatedly tried to use a session on your Garbigo account that had already been
                                         signed out. Those attempts were rejected. This can happen with an old browser tab, but it can
                                         also mean a stolen sign-in.
@@ -175,7 +148,7 @@
                                 </th:block>
 
                                 <th:block th:case="'ACCOUNT_ALREADY_EXISTS'">
-                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:#333333;">
+                                    <p style="margin:0 0 16px 0; font-size:16px; line-height:1.65; color:#33423a;">
                                         Someone tried to create a Garbigo account with this email address, but an account already
                                         exists. If it was you, just sign in, or use "forgot password" if you do not remember it.
                                         If it was not you, you can safely ignore this email.
@@ -184,89 +157,59 @@
 
                             </th:block>
 
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                                   th:if="${event == 'NEW_SIGN_IN' or event == 'UNTRUSTED_SIGN_IN' or event == 'SUSPICIOUS_SIGN_IN'}"
-                                   style="margin:0 0 20px 0; border:1px solid #e3e6ea; border-radius:8px;">
-                                <tr th:if="${occurredAt != null}">
-                                    <th class="detail-label" align="left" style="padding:10px 14px 4px 14px; width:38%; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Time</th>
-                                    <td class="detail-value" style="padding:10px 14px 4px 14px; font-size:14px; color:#1b1b1b;" th:text="${occurredAt}">date</td>
-                                </tr>
-                                <tr>
-                                    <th class="detail-label" align="left" style="padding:4px 14px; width:38%; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Account</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${email}">email</td>
-                                </tr>
-                                <tr>
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Sign-in method</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${signInMethod}">method</td>
-                                </tr>
-                                <tr>
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Device</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${deviceLabel}">device</td>
-                                </tr>
-                                <tr th:if="${deviceType != null}">
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Device type</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${deviceType}">type</td>
-                                </tr>
-                                <tr th:if="${os != null}">
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Operating system</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${os}">os</td>
-                                </tr>
-                                <tr th:if="${browser != null}">
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Browser or app</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${browser}">browser</td>
-                                </tr>
-                                <tr>
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Device status</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${deviceStatus}">status</td>
-                                </tr>
-                                <tr>
-                                    <th class="detail-label" align="left" style="padding:4px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">IP address</th>
-                                    <td class="detail-value" style="padding:4px 14px; font-size:14px; color:#1b1b1b;" th:text="${ip}">ip</td>
-                                </tr>
-                                <tr>
-                                    <th class="detail-label" align="left" style="padding:4px 14px 10px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Approximate location</th>
-                                    <td class="detail-value" style="padding:4px 14px 10px 14px; font-size:14px; color:#1b1b1b;"
-                                        th:text="${location != null} ? ${location} : 'Not available'">location</td>
-                                </tr>
-                            </table>
+                            <th:block th:if="${signInEvent}" th:with="shownLocation=${location != null} ? ${location} : 'Not available'">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                       style="margin:0 0 14px 0; border:1px solid #e2e9e4; border-radius:12px; background-color:#f7faf8;">
+                                    <tr>
+                                        <td colspan="2" style="padding:13px 18px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:13px; font-weight:700; color:#14231c; background-color:#eef4f0; border-radius:12px 12px 0 0;">Sign-in details</td>
+                                    </tr>
+                                    <th:block th:replace="~{emails/layout :: detail('Time', ${occurredAt})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Account', ${email})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Sign-in method', ${signInMethod})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Device', ${deviceLabel})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Device type', ${deviceType})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Operating system', ${os})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Browser or app', ${browser})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Device status', ${deviceStatus})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('IP address', ${ip})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('Approximate location', ${shownLocation})}"></th:block>
+                                </table>
+                                <p style="margin:0 0 20px 0; font-size:12px; line-height:1.6; color:#6b7a72;">
+                                    The location is approximate and is worked out from the IP address. Device details come from
+                                    information the browser or app sends, which can be wrong or changed, so treat them as hints.
+                                </p>
+                            </th:block>
 
-                            <p th:if="${(event == 'NEW_SIGN_IN' or event == 'UNTRUSTED_SIGN_IN' or event == 'SUSPICIOUS_SIGN_IN')}"
-                               style="margin:0 0 16px 0; font-size:13px; line-height:1.5; color:#777777;">
-                                The location is approximate and is worked out from the IP address. Device details come from
-                                information the browser or app sends, which can be wrong or changed, so treat them as hints.
-                            </p>
-
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                                   th:if="${event == 'ACCOUNT_LOCKED' or event == 'PASSWORD_CHANGED' or event == 'PASSWORD_RESET_COMPLETED' or event == 'TOKEN_REPLAY' or event == 'EMAIL_CHANGED'}"
-                                   style="margin:0 0 20px 0; border:1px solid #e3e6ea; border-radius:8px;">
-                                <tr th:if="${occurredAt != null}">
-                                    <th class="detail-label" align="left" style="padding:10px 14px 4px 14px; width:38%; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">Time</th>
-                                    <td class="detail-value" style="padding:10px 14px 4px 14px; font-size:14px; color:#1b1b1b;" th:text="${occurredAt}">date</td>
-                                </tr>
-                                <tr th:if="${ip != null}">
-                                    <th class="detail-label" align="left" style="padding:4px 14px 10px 14px; font-size:13px; color:#666666; font-weight:normal; vertical-align:top;">IP address</th>
-                                    <td class="detail-value" style="padding:4px 14px 10px 14px; font-size:14px; color:#1b1b1b;" th:text="${ip}">ip</td>
-                                </tr>
-                            </table>
+                            <th:block th:if="${event == 'ACCOUNT_LOCKED' or event == 'PASSWORD_CHANGED' or event == 'PASSWORD_RESET_COMPLETED' or event == 'TOKEN_REPLAY' or event == 'EMAIL_CHANGED'}">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                       style="margin:0 0 22px 0; border:1px solid #e2e9e4; border-radius:12px; background-color:#f7faf8;">
+                                    <tr>
+                                        <td colspan="2" style="padding:13px 18px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:13px; font-weight:700; color:#14231c; background-color:#eef4f0; border-radius:12px 12px 0 0;">Event details</td>
+                                    </tr>
+                                    <th:block th:replace="~{emails/layout :: detail('Time', ${occurredAt})}"></th:block>
+                                    <th:block th:replace="~{emails/layout :: detail('IP address', ${ip})}"></th:block>
+                                </table>
+                            </th:block>
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                                    th:if="${reportUrl != null}"
-                                   style="margin:0 0 20px 0;">
+                                   style="margin:0 0 22px 0;">
                                 <tr>
-                                    <td bgcolor="#fdecea" style="background-color:#fdecea; border:1px solid #f5c6c2; border-left:4px solid #b3261e; border-radius:8px; padding:16px; font-family:Helvetica, Arial, sans-serif;">
-                                        <p style="margin:0 0 12px 0; font-size:15px; line-height:1.5; color:#7a1a14;">
+                                    <td bgcolor="#fdecea" style="background-color:#fdecea; border:1px solid #f5c6c2; border-radius:12px; padding:20px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                                        <p style="margin:0 0 6px 0; font-size:15px; font-weight:700; color:#6e1511;">Was this not you?</p>
+                                        <p style="margin:0 0 14px 0; font-size:15px; line-height:1.6; color:#6e1511;">
                                             <strong>If you did not sign in,</strong> secure your account immediately by revoking this
                                             session and changing your password.
                                         </p>
                                         <table role="presentation" cellpadding="0" cellspacing="0">
                                             <tr>
-                                                <td bgcolor="#b3261e" style="background-color:#b3261e; border-radius:8px;">
+                                                <td bgcolor="#b3261e" style="background-color:#b3261e; border-radius:10px;">
                                                     <a th:href="${reportUrl}" target="_blank"
-                                                       style="display:inline-block; padding:12px 24px; font-family:Helvetica, Arial, sans-serif; font-size:15px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:8px;">This was not me</a>
+                                                       style="display:inline-block; padding:13px 28px; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:10px;">This was not me</a>
                                                 </td>
                                             </tr>
                                         </table>
-                                        <p style="margin:12px 0 0 0; font-size:12px; line-height:1.5; color:#7a1a14;">
+                                        <p style="margin:14px 0 0 0; font-size:12px; line-height:1.6; color:#7a2a24;">
                                             This link works once and expires after a short time. Opening it does not change anything;
                                             you will be asked to confirm first.
                                         </p>
@@ -274,45 +217,27 @@
                                 </tr>
                             </table>
 
-                            <p th:if="${reportUrl == null and (event == 'NEW_SIGN_IN' or event == 'UNTRUSTED_SIGN_IN' or event == 'SUSPICIOUS_SIGN_IN')}"
-                               style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#b3261e;">
-                                <strong>If you did not sign in,</strong> secure your account immediately by changing your password.
-                            </p>
+                            <th:block th:if="${reportUrl == null and signInEvent}">
+                                <th:block th:replace="~{emails/layout :: callout('Was this not you?', 'If you did not sign in, secure your account immediately by changing your password.', 'danger')}"></th:block>
+                            </th:block>
 
-                            <p th:if="${(event == 'ACCOUNT_LOCKED' or event == 'TOKEN_REPLAY' or event == 'PASSWORD_CHANGED' or event == 'PASSWORD_RESET_COMPLETED' or event == 'EMAIL_CHANGED' or event == 'ROLE_CHANGED' or event == 'ADMIN_ROLE_GRANTED')}"
-                               style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#b3261e;">
-                                If you did not expect this, reset your password right away and contact support.
-                            </p>
+                            <th:block th:if="${event == 'ACCOUNT_LOCKED' or event == 'TOKEN_REPLAY' or event == 'PASSWORD_CHANGED' or event == 'PASSWORD_RESET_COMPLETED' or event == 'EMAIL_CHANGED' or event == 'ROLE_CHANGED' or event == 'ADMIN_ROLE_GRANTED'}">
+                                <th:block th:replace="~{emails/layout :: callout('Not expected?', 'If you did not expect this, reset your password right away and contact support.', 'danger')}"></th:block>
+                            </th:block>
 
-                            <table role="presentation" cellpadding="0" cellspacing="0"
-                                   th:if="${reviewUrl != null and event != 'ADMIN_INVITATION' and event != 'ACCOUNT_ALREADY_EXISTS'}"
-                                   style="margin:4px 0 24px 0;">
-                                <tr>
-                                    <td bgcolor="#ffffff" style="background-color:#ffffff; border:2px solid #2e7d32; border-radius:8px;">
-                                        <a th:href="${reviewUrl}" target="_blank"
-                                           style="display:inline-block; padding:11px 24px; font-family:Helvetica, Arial, sans-serif; font-size:15px; font-weight:bold; color:#2e7d32; text-decoration:none; border-radius:8px;">Review account security</a>
-                                    </td>
-                                </tr>
-                            </table>
+                            <th:block th:if="${reviewUrl != null and event != 'ADMIN_INVITATION' and event != 'ACCOUNT_ALREADY_EXISTS'}">
+                                <th:block th:replace="~{emails/layout :: buttonOutline(${reviewUrl}, 'Review account security', ${tone})}"></th:block>
+                            </th:block>
 
                         </td>
                     </tr>
 
-                    <tr>
-                        <td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:20px; text-align:center; font-family:Helvetica, Arial, sans-serif;">
-                            <p style="margin:0 0 6px 0; font-size:12px; color:#999999;">
-                                Sent to <span th:text="${email}">your email</span> on <span th:text="${sentAt}">the send date</span>.
-                            </p>
-                            <p style="margin:0 0 6px 0; font-size:12px; color:#999999;">
-                                We will never ask for your password, sign-in codes or tokens by email.
-                            </p>
-                            <p style="margin:0; font-size:13px; color:#666666;">&copy; <span th:text="${year}">2026</span> <span th:text="${appName}">Garbigo</span>. All rights reserved.</p>
-                        </td>
-                    </tr>
+                    <th:block th:replace="~{emails/layout :: footer(${email}, ${sentAt})}"></th:block>
                 </table>
             </td>
         </tr>
     </table>
+    <!--[if mso]></td></tr></table><![endif]-->
 </center>
 </body>
 </html>

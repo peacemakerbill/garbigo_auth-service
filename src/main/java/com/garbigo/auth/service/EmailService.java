@@ -45,7 +45,7 @@ public class EmailService {
         context.setVariable("sentAt", TIMESTAMP_FORMAT.format(Instant.now()));
         context.setVariable("expiresAt", TIMESTAMP_FORMAT.format(expiresAt));
 
-        String htmlContent = templateEngine.process("verify-account", context);
+        String htmlContent = templateEngine.process("emails/verify-account", context);
 
         helper.setText(htmlContent, true);
         mailSender.send(message);
@@ -66,7 +66,7 @@ public class EmailService {
         context.setVariable("sentAt", TIMESTAMP_FORMAT.format(Instant.now()));
         context.setVariable("expiresAt", TIMESTAMP_FORMAT.format(expiresAt));
 
-        String htmlContent = templateEngine.process("reset-password", context);
+        String htmlContent = templateEngine.process("emails/reset-password", context);
 
         helper.setText(htmlContent, true);
         mailSender.send(message);

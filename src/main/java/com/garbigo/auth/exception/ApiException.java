@@ -2,10 +2,10 @@ package com.garbigo.auth.exception;
 
 import org.springframework.http.HttpStatus;
 
-@SuppressWarnings("serial")
 public class ApiException extends CustomException {
 
-    private final HttpStatus status;
+    private static final long serialVersionUID = 1L;
+	private final HttpStatus status;
     private final Long retryAfterSeconds;
 
     public ApiException(HttpStatus status, String message) {

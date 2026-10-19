@@ -163,9 +163,7 @@ public class ApplicationEmailService {
         ctx.setVariable("intro", intro);
         ctx.setVariable("steps", steps);
         ctx.setVariable("reference", app.getReferenceNumber());
-        ctx.setVariable("accent", look.accent());
-        ctx.setVariable("accentSoft", look.soft());
-        ctx.setVariable("symbol", look.symbol());
+        ctx.setVariable("tone", look.tone());
         ctx.setVariable("applyingFor", "Garbigo collector");
         ctx.setVariable("updatedAt", STAMP.format(Instant.now()));
         ctx.setVariable("sentAt", STAMP.format(Instant.now()));
@@ -183,7 +181,7 @@ public class ApplicationEmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(to);
             helper.setSubject("Garbigo - " + subject);
-            helper.setText(templateEngine.process("application-update", ctx), true);
+            helper.setText(templateEngine.process("emails/application-update", ctx), true);
             mailSender.send(message);
         } catch (Exception e) {
             log.warn("APPLICATION EMAIL: could not send '{}' to {}: {}", subject, to, e.getMessage());
@@ -198,16 +196,16 @@ public class ApplicationEmailService {
         return full.trim().split("\\s+")[0];
     }
 
-    private record Look(String accent, String soft, String symbol) {
+    private record Look(String tone) {
     }
 
     private static Look lookFor(ApplicationStatus status) {
         return switch (status) {
-            case PROCESSING -> new Look("#1565c0", "#e3f2fd", "i");
-            case MORE_INFO_NEEDED -> new Look("#ef6c00", "#fff3e0", "!");
-            case REJECTED -> new Look("#c62828", "#ffebee", "×");
-            case WITHDRAWN -> new Look("#546e7a", "#eceff1", "–");
-            default -> new Look("#2e7d32", "#e8f5e9", "✓");
+            case PROCESSING -> new Look("info");
+            case MORE_INFO_NEEDED -> new Look("warning");
+            case REJECTED -> new Look("danger");
+            case WITHDRAWN -> new Look("neutral");
+            default -> new Look("success");
         };
     }
 }

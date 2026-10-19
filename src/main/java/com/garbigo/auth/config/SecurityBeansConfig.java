@@ -13,12 +13,17 @@ import org.springframework.data.redis.core.RedisTemplate;
 import java.time.Duration;
 
 @Configuration
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class, AdminSeedProperties.class})
 public class SecurityBeansConfig {
 
     @Bean
-    AdminEmailPolicy adminEmailPolicy(SecurityProperties properties) {
-        return new AdminEmailPolicy(properties.getInitialAdminEmails(), properties.getAutoAdminEmails());
+    AdminEmailPolicy adminEmailPolicy(SecurityProperties properties, AdminSeedProperties seedProperties) {
+        String initial = properties.getInitialAdminEmails();
+        String seeded = seedProperties.seededEmails();
+        if (!seeded.isEmpty()) {
+            initial = initial == null || initial.isBlank() ? seeded : initial + "," + seeded;
+        }
+        return new AdminEmailPolicy(initial, properties.getAutoAdminEmails());
     }
 
     @Bean

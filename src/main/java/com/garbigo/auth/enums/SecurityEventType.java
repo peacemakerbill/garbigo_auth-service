@@ -3,6 +3,7 @@ package com.garbigo.auth.enums;
 public enum SecurityEventType {
     ADMIN_CONFIG_INVALID_ENTRY,
     ADMIN_CONFIG_DRIFT,
+    ADMIN_ACCOUNT_SEEDED,
     ADMIN_INVITATION_SENT,
     ADMIN_INVITATION_FAILED,
     ADMIN_ROLE_GRANTED,
