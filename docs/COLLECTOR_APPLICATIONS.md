@@ -636,17 +636,56 @@ Document rejections that happen before the application is moved to `MORE_INFO_NE
 
 ## File storage setup
 
-Documents are written to a folder on the machine that runs the service. This can be a normal server disk, a folder mounted from a Synology or other NAS, or any path the service user can write to.
+Documents are written as files. `STORAGE_MODE` in `.env` chooses where, and a restart applies the change:
 
-There is no default location. You must set `STORAGE_ROOT` in `.env`, for example:
+| Mode | Where documents go | Settings it needs |
+|---|---|---|
+| `LOCAL` (default) | A folder on the machine that runs the service, or any path the service user can write to | `STORAGE_ROOT` |
+| `NETWORK` | A NAS share (SMB or NFS, for example a Synology) that is already mounted on the server | `STORAGE_NETWORK_MOUNT_PATH`, and `STORAGE_NETWORK_HOST`, `STORAGE_NETWORK_SHARE` for the mount check |
+
+There is no default location in either mode. If the chosen mode is not set up (for example `STORAGE_ROOT` is empty in LOCAL mode, or `STORAGE_NETWORK_MOUNT_PATH` is empty in NETWORK mode), the service still starts and everything else works, but uploads and document views return the friendly "document storage" message and the log says what is missing. A wrong `STORAGE_MODE`, protocol or directory is reported the same way, and nothing is saved anywhere by guesswork.
+
+### Local folder
 
 ```
+STORAGE_MODE=LOCAL
 STORAGE_ROOT=/home/graham218/MyProjects/file-storage/Garbigo-Auth/
 ```
 
-If `STORAGE_ROOT` is empty, the service still starts and everything else works, but uploads and document views return the friendly "document storage" message and the log says `STORAGE_ROOT is not set`.
+### Network share
 
-Inside the folder the service creates:
+Mount the share on the server first. The service never connects to the NAS and never mounts anything itself. It only reads the server's list of mounted drives to confirm that the right share is mounted at the mount path.
+
+```
+STORAGE_MODE=NETWORK
+STORAGE_NETWORK_PROTOCOL=SMB
+STORAGE_NETWORK_HOST=192.168.1.20
+STORAGE_NETWORK_SHARE=garbigo
+STORAGE_NETWORK_MOUNT_PATH=/mnt/garbigo-nas
+STORAGE_NETWORK_DIRECTORY=garbigo-auth
+STORAGE_NETWORK_REQUIRE_MOUNT=true
+```
+
+- For SMB, the share is the share name. For NFS, set `STORAGE_NETWORK_PROTOCOL=NFS` and the share is the exported path, for example `/volume1/garbigo`.
+- Documents are saved in `STORAGE_NETWORK_DIRECTORY` inside the share. An empty value saves them at the top of the share.
+- The host must be written the way it was mounted. If the share was mounted by IP address, use the IP address here, not the host name. Share names are compared without case for SMB and exactly for NFS.
+- With `STORAGE_NETWORK_REQUIRE_MOUNT=true` the service checks the mount when it starts and again before every upload, download and delete. If the share is missing, belongs to another host or share, or something else (such as a local disk) is mounted at the path, the request is refused and the log says why. This stops files from silently landing on the local disk when the NAS is offline. Uploads work again as soon as the share is back, with no restart.
+- With `STORAGE_NETWORK_REQUIRE_MOUNT=false` there is no check and the folder is created if it does not exist. Use it only for development.
+- The mount check reads `/proc/self/mountinfo`, so it works on Linux only. On Windows or macOS use `STORAGE_MODE=LOCAL`, or set `STORAGE_NETWORK_REQUIRE_MOUNT=false`.
+- To make a mount survive restarts, add it to `/etc/fstab` on the server, for example `//192.168.1.20/garbigo /mnt/garbigo-nas cifs credentials=/etc/garbigo-nas.cred,uid=graham218,gid=graham218,_netdev,nofail 0 0`. The credentials file belongs to the server, not to this project, and should be readable by root only.
+
+### Switching between modes
+
+The database stores the path of each file inside the storage folder, so a document is found in either mode as long as the files are in the same relative place. Switching does not move any files. To switch:
+
+1. Stop the service.
+2. Copy the contents of the current storage folder into the new one, keeping the structure (`collector-applications/...`). For example, from the local folder into the mounted share's directory: `cp -a /home/graham218/MyProjects/file-storage/Garbigo-Auth/. /mnt/garbigo-nas/garbigo-auth/`.
+3. Change `STORAGE_MODE` and its settings in `.env`, then start the service.
+4. Check the log for the `STORAGE:` line, then open one document as staff to confirm.
+
+If you skip the copy, existing applications show "This file could not be found" until the files are back, and new uploads are saved in the new place. Switching back and copying again restores them.
+
+Inside the storage folder the service creates:
 
 ```
 collector-applications/
@@ -658,8 +697,8 @@ collector-applications/
 Setup:
 
 1. Create the folder, or let the service create it on start, and make sure the user that runs the service owns it and can read and write there.
-2. For a Synology or other NAS, mount the share on the server first (NFS or SMB) and point `STORAGE_ROOT` at the mount, for example `/mnt/synology/garbigo-auth/`. The share must stay mounted whenever the service runs, otherwise uploads fail with the "document storage" message.
-3. Set `STORAGE_ROOT` in `.env`, then restart the service. The log shows `STORAGE: documents are stored in ...` on start, or an error if the folder cannot be used.
+2. For a Synology or other NAS, mount the share on the server first (NFS or SMB) and use NETWORK mode. The share must stay mounted whenever the service runs, otherwise uploads fail with the "document storage" message.
+3. Set the storage settings in `.env`, then restart the service. The log shows `STORAGE: documents are stored in ...` (LOCAL) or `STORAGE: documents are stored on the SMB share mounted at ...` (NETWORK) on start, or an error saying what is wrong.
 
 Keep in mind:
 
@@ -667,16 +706,23 @@ Keep in mind:
 - Never put the folder inside a directory that a web server or file browser exposes. Files are only served through the service, after a role check, and each staff view is written to the service log with the staff member's id.
 - By default new folders and files are readable only by the user running the service (`STORAGE_RESTRICT_PERMISSIONS=true`). Turn that off if your backup tool or NAS needs group access.
 - Back the folder up. The database stores only the path of each file, so a lost file cannot be rebuilt from the database.
-- Do not rename or delete files by hand. The database stores each file's path inside the storage root, so you can move the whole root to another disk and change `STORAGE_ROOT`, but renaming a single file breaks that document.
+- Do not rename or delete files by hand. The database stores each file's path inside the storage folder, so you can move the whole folder to another disk or share and change the settings, but renaming a single file breaks that document.
 - Documents uploaded when the service still used Google Drive are not found on disk. Ask those applicants to upload them again, or copy the files into the new folder structure and update their `storageFile` values.
 - The service refuses any path that would leave the storage root, and file names are generated by the service, never taken from the upload.
 
 ## Configuration
 
-Add to `.env` (`STORAGE_ROOT` is required, the rest are optional and the defaults are shown):
+Add to `.env` (`STORAGE_ROOT` is required in LOCAL mode, `STORAGE_NETWORK_MOUNT_PATH` in NETWORK mode, and the rest are optional with the defaults shown):
 
 ```properties
+STORAGE_MODE=LOCAL
 STORAGE_ROOT=/path/to/your/storage/folder/
+STORAGE_NETWORK_PROTOCOL=SMB
+STORAGE_NETWORK_HOST=
+STORAGE_NETWORK_SHARE=
+STORAGE_NETWORK_MOUNT_PATH=
+STORAGE_NETWORK_DIRECTORY=garbigo-auth
+STORAGE_NETWORK_REQUIRE_MOUNT=true
 STORAGE_APPLICATIONS_FOLDER=collector-applications
 STORAGE_RESTRICT_PERMISSIONS=true
 COLLECTOR_APPLICATION_MAX_FILE_MB=5
@@ -689,7 +735,14 @@ COLLECTOR_APPLICATION_MAX_ATTEMPTS=0
 
 | Variable | Purpose |
 |---|---|
-| `STORAGE_ROOT` | Required, no default. Folder where documents are saved. Created if missing |
+| `STORAGE_MODE` | `LOCAL` (default) or `NETWORK`. Chooses where documents are saved |
+| `STORAGE_ROOT` | LOCAL mode. Required, no default. Folder where documents are saved. Created if missing |
+| `STORAGE_NETWORK_PROTOCOL` | NETWORK mode. `SMB` (default) or `NFS` |
+| `STORAGE_NETWORK_HOST` | NETWORK mode. IP address or name of the NAS, as it was mounted. Only used to check the mount |
+| `STORAGE_NETWORK_SHARE` | NETWORK mode. SMB share name, or the NFS exported path. Only used to check the mount |
+| `STORAGE_NETWORK_MOUNT_PATH` | NETWORK mode. Required, no default. Folder where the share is mounted on the server |
+| `STORAGE_NETWORK_DIRECTORY` | NETWORK mode. Folder inside the share that holds the documents. Default `garbigo-auth` |
+| `STORAGE_NETWORK_REQUIRE_MOUNT` | NETWORK mode. When true, reads and writes are refused unless the share is really mounted. Default true |
 | `STORAGE_APPLICATIONS_FOLDER` | Sub folder of the root that holds one folder per application |
 | `STORAGE_RESTRICT_PERMISSIONS` | Owner-only permissions on new folders and files |
 | `COLLECTOR_APPLICATION_MAX_FILE_MB` | Per-file upload limit. Keep it at or below the `spring.servlet.multipart` limit (10 MB) |

@@ -73,9 +73,26 @@ app:
   url: ${APP_URL:http://localhost:3000}
 
   storage:
+    # LOCAL saves documents in STORAGE_ROOT. NETWORK saves them on a NAS share that is already mounted on this server.
+    mode: ${STORAGE_MODE:LOCAL}
+    # LOCAL mode only. No default.
     root: ${STORAGE_ROOT:}
     applications-folder: ${STORAGE_APPLICATIONS_FOLDER:collector-applications}
     restrict-permissions: ${STORAGE_RESTRICT_PERMISSIONS:true}
+    # NETWORK mode only
+    network:
+      # SMB (Synology, Windows share) or NFS
+      protocol: ${STORAGE_NETWORK_PROTOCOL:SMB}
+      # IP address or host name of the NAS. Used to check that the right share is mounted, never to connect.
+      host: ${STORAGE_NETWORK_HOST:}
+      # SMB: the share name. NFS: the exported path, for example /volume1/garbigo
+      share: ${STORAGE_NETWORK_SHARE:}
+      # Where the share is mounted on this server. No default.
+      mount-path: ${STORAGE_NETWORK_MOUNT_PATH:}
+      # Folder inside the share that holds the documents
+      directory: ${STORAGE_NETWORK_DIRECTORY:garbigo-auth}
+      # true: refuse to read or write unless the share is really mounted (otherwise files land on the local disk)
+      require-mount: ${STORAGE_NETWORK_REQUIRE_MOUNT:true}
 
   admin:
     seed-enabled: ${ADMIN_SEED_ENABLED:true}

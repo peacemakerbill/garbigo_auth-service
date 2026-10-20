@@ -74,9 +74,48 @@
       "description": "Shared secret other microservices send as the X-Internal-Api-Key header on Feign calls into this service."
     },
     {
+      "name": "app.storage.mode",
+      "type": "java.lang.String",
+      "description": "LOCAL saves documents in app.storage.root. NETWORK saves them on a NAS share (SMB or NFS) that is already mounted on this server.",
+      "defaultValue": "LOCAL"
+    },
+    {
       "name": "app.storage.root",
       "type": "java.lang.String",
-      "description": "Required for document uploads. Folder on the server (or a mounted NAS or Synology share) where collector application documents are saved. Created if it does not exist. No default."
+      "description": "LOCAL mode only. Folder on the server where collector application documents are saved. Created if it does not exist. No default."
+    },
+    {
+      "name": "app.storage.network.protocol",
+      "type": "java.lang.String",
+      "description": "NETWORK mode only. SMB or NFS.",
+      "defaultValue": "SMB"
+    },
+    {
+      "name": "app.storage.network.host",
+      "type": "java.lang.String",
+      "description": "NETWORK mode only. IP address or host name of the NAS. Used to check that the right share is mounted, never to connect."
+    },
+    {
+      "name": "app.storage.network.share",
+      "type": "java.lang.String",
+      "description": "NETWORK mode only. SMB: the share name. NFS: the exported path, for example /volume1/garbigo."
+    },
+    {
+      "name": "app.storage.network.mount-path",
+      "type": "java.lang.String",
+      "description": "NETWORK mode only. Folder where the share is mounted on this server. No default."
+    },
+    {
+      "name": "app.storage.network.directory",
+      "type": "java.lang.String",
+      "description": "NETWORK mode only. Folder inside the share that holds the documents.",
+      "defaultValue": "garbigo-auth"
+    },
+    {
+      "name": "app.storage.network.require-mount",
+      "type": "java.lang.Boolean",
+      "description": "NETWORK mode only. When true, the service refuses to read or write unless the share is really mounted, so files never land on the local disk by mistake.",
+      "defaultValue": true
     },
     {
       "name": "app.storage.applications-folder",

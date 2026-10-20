@@ -497,7 +497,10 @@ Configuration is loaded from `.env` at startup (via `spring.config.import`), fal
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Facebook Login |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `INTERNAL_API_KEY` | Shared secret other microservices send in the `X-Internal-Api-Key` header |
-| `STORAGE_ROOT` | Folder where collector application documents are saved. Required, no default |
+| `STORAGE_MODE` | `LOCAL` (default) saves documents in `STORAGE_ROOT`. `NETWORK` saves them on a NAS share mounted on the server |
+| `STORAGE_ROOT` | LOCAL mode. Folder where collector application documents are saved. Required in LOCAL mode, no default |
+| `STORAGE_NETWORK_PROTOCOL`, `STORAGE_NETWORK_HOST`, `STORAGE_NETWORK_SHARE` | NETWORK mode. SMB or NFS, the NAS address, and the share name (SMB) or exported path (NFS). Used to check the right share is mounted |
+| `STORAGE_NETWORK_MOUNT_PATH`, `STORAGE_NETWORK_DIRECTORY`, `STORAGE_NETWORK_REQUIRE_MOUNT` | NETWORK mode. Where the share is mounted (required, no default), the folder inside it, and whether to refuse writes when it is not mounted |
 | `STORAGE_APPLICATIONS_FOLDER`, `STORAGE_RESTRICT_PERMISSIONS` | Optional. Sub folder for applications, and owner-only permissions on new files |
 | `COLLECTOR_APPLICATION_MAX_FILE_MB` | Optional. Upload limit per document, default 5 |
 | `COLLECTOR_APPLICATION_REVIEW_DAYS` | Optional. The "we usually reply within N working days" text, default 3 |
@@ -785,13 +788,28 @@ Files can be PDF, JPG, or PNG, up to 5 MB. The service checks the real file cont
 
 ### File Storage Setup
 
-Documents are saved as files in a private folder on the machine that runs the service, one sub folder per applicant. Set the folder in `.env` and restart. It can be a normal server folder or a mounted Synology or NAS share. There is no default; without it, uploads are unavailable:
+Documents are saved as files, one sub folder per applicant. `STORAGE_MODE` in `.env` chooses where, and a restart applies the change. There is no default path; if the chosen mode is not set up, uploads are unavailable and everything else keeps working.
+
+Local folder on the server (the default):
 
 ```properties
-STORAGE_ROOT=/mnt/synology/garbigo-auth/
+STORAGE_MODE=LOCAL
+STORAGE_ROOT=/home/graham218/MyProjects/file-storage/Garbigo-Auth/
 ```
 
-The user running the service must be able to read and write the folder, and a network share must be mounted whenever the service runs. Full details, backup and privacy notes are in `COLLECTOR_APPLICATIONS.md`.
+A Synology or other NAS share. Mount the share on the server first, then describe it:
+
+```properties
+STORAGE_MODE=NETWORK
+STORAGE_NETWORK_PROTOCOL=SMB
+STORAGE_NETWORK_HOST=192.168.1.20
+STORAGE_NETWORK_SHARE=garbigo
+STORAGE_NETWORK_MOUNT_PATH=/mnt/garbigo-nas
+STORAGE_NETWORK_DIRECTORY=garbigo-auth
+STORAGE_NETWORK_REQUIRE_MOUNT=true
+```
+
+The service never connects to the NAS itself and never mounts anything. The host and share are only used to confirm that the right share is mounted at the mount path. While `STORAGE_NETWORK_REQUIRE_MOUNT=true`, uploads and downloads are refused if the share is missing, so files never end up on the local disk by mistake. The mount check reads `/proc/self/mountinfo`, so it works on Linux only. Full details, switching steps, backup and privacy notes are in `COLLECTOR_APPLICATIONS.md`.
 
 <br/>
 
@@ -807,7 +825,7 @@ src/main/java/com/garbigo/auth
 ├── model            # MongoDB documents: User, Token, Follow, Like, Review, ProfileView, LiveLocation, CollectorApplication
 ├── repository       # Spring Data MongoDB repositories
 ├── security         # JwtUtil, JwtFilter, TokenBlacklistService, UserDetailsServiceImpl
-├── service          # Business logic: AuthService, SocialAuthService, UserService, SocialService, CollectorApplicationService, GoogleDriveStorageService, ...
+├── service          # Business logic: AuthService, SocialAuthService, UserService, SocialService, CollectorApplicationService, DiskStorageService, NetworkMountCheck, ...
 └── util             # RateLimiter, Countries, PhoneNumbers
 
 src/main/resources
